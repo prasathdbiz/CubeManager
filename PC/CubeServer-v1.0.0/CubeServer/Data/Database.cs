@@ -4061,7 +4061,7 @@ namespace CubeServer.Data
                             b.CubeSetId = reader.SafeGetInt(2);
                             b.TestAge = reader.SafeGetInt(3);
                             b.TargetTestDate = reader.SafeGetDateTime(4);
-                            b.Dimension = reader.SafeGetInt(5);
+                            b.Dimension = reader.SafeGetDouble(5);
                             b.WitnessNum = reader.SafeGetInt(6);
                             b.AvgStrength = reader.SafeGetDouble(7);
                             b.RollingAvgStrength = reader.SafeGetDouble(8);
@@ -4170,7 +4170,7 @@ namespace CubeServer.Data
                                 b.CubeSetId = reader.SafeGetInt(2);
                                 b.TestAge = reader.SafeGetInt(3);
                                 b.TargetTestDate = reader.SafeGetDateTime(4);
-                                b.Dimension = reader.SafeGetInt(5);
+                                b.Dimension = reader.SafeGetDouble(5);
                                 b.WitnessNum = reader.SafeGetInt(6);
                                 b.AvgStrength = reader.SafeGetDouble(7);
                                 b.RollingAvgStrength = reader.SafeGetDouble(8);
@@ -4245,7 +4245,7 @@ namespace CubeServer.Data
                                 b.CubeSetId = reader.SafeGetInt(2);
                                 b.TestAge = reader.SafeGetInt(3);
                                 b.TargetTestDate = reader.SafeGetDateTime(4);
-                                b.Dimension = reader.SafeGetInt(5);
+                                b.Dimension = reader.SafeGetDouble(5);
                                 b.WitnessNum = reader.SafeGetInt(6);
                                 b.AvgStrength = reader.SafeGetDouble(7);
                                 b.RollingAvgStrength = reader.SafeGetDouble(8);
@@ -4371,7 +4371,7 @@ namespace CubeServer.Data
                             b.CubeSetId = reader.SafeGetInt(2);
                             b.TestAge = reader.SafeGetInt(3);
                             b.TargetTestDate = reader.SafeGetDateTime(4);
-                            b.Dimension = reader.SafeGetInt(5);
+                            b.Dimension = reader.SafeGetDouble(5);
                             b.WitnessNum = reader.SafeGetInt(6);
                             b.AvgStrength = reader.SafeGetDouble(7);
                             b.RollingAvgStrength = reader.SafeGetDouble(8);
@@ -4423,7 +4423,7 @@ namespace CubeServer.Data
                             b.CubeSetId = reader.SafeGetInt(2);
                             b.TestAge = reader.SafeGetInt(3);
                             b.TargetTestDate = reader.SafeGetDateTime(4);
-                            b.Dimension = reader.SafeGetInt(5);
+                            b.Dimension = reader.SafeGetDouble(5);
                             b.WitnessNum = reader.SafeGetInt(6);
                             b.AvgStrength = reader.SafeGetDouble(7);
                             b.RollingAvgStrength = reader.SafeGetDouble(8);
