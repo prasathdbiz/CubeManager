@@ -246,6 +246,8 @@ else
 
             }
 
+            if (cube.TestResult == 0) cube.TestResult = 1; // default to Pass until tested
+
             // grab ancestor data
             batch = Global.db.GetBatch(cube.ScoNum, cube.BatchId);
             if (batch != null)

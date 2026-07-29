@@ -28,8 +28,8 @@ namespace CubeServer.Models
             }
         }
         public DateTime? TargetTestDate { get; set; } // calculated
-        [Required, Range(100, 150, ErrorMessage = "Dimension must be 100mm or 150mm.")]
-        public double Dimension { get; set; } // 100 or 150
+        [Required, Range(50, 150, ErrorMessage = "Dimension must be 50mm, 100mm or 150mm.")]
+        public double Dimension { get; set; } // 50, 100 or 150
         [Required]
         public int WitnessNum { get; set; }
         public double AvgStrength { get; set; } // for cubes under batch
