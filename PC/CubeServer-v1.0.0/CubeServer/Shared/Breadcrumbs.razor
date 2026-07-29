@@ -1,0 +1,71 @@
+﻿@inject NavigationManager NavMan
+
+@if (dataAvail)
+{
+    <MudBreadcrumbs Items="breadcrumbs">
+        <ItemTemplate Context="item">
+            <MudLink Href="@item.Href" Class="bcrumb">@item.Text</MudLink>
+        </ItemTemplate>
+        <SeparatorTemplate>
+            <MudText Class="bcrumb">></MudText>
+        </SeparatorTemplate>
+    </MudBreadcrumbs>
+}
+
+<style>
+    .bcrumb
+    {
+        color: white !important;
+    }
+</style>
+
+@code {
+    bool dataAvail;
+    List<BreadcrumbItem> breadcrumbs = new List<BreadcrumbItem>();
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        PopulateBreadcrumbs();
+        dataAvail = true;
+    }
+
+    private void PopulateBreadcrumbs()
+    {
+        breadcrumbs.Clear();
+
+        string uri = NavMan.Uri.Replace(NavMan.BaseUri, "");
+        string[] crumbs = uri.Split(new char[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
+
+        string link = "";
+        if (crumbs.Length == 0)
+        {
+            BreadcrumbItem bc = new BreadcrumbItem("Home", href: link);
+            breadcrumbs.Add(bc);
+        }
+        else
+        {
+            for (int i=0; i<crumbs.Length; i++)
+            {
+                string s = crumbs[i];
+                link += "/" + s;
+
+                BreadcrumbItem bc;
+                if (i >= crumbs.Length - 1)
+                {
+                    bc = new BreadcrumbItem(s, href: null, disabled: true);
+                }
+                else
+                {
+                    bc = new BreadcrumbItem(s, href: link);
+                }
+                breadcrumbs.Add(bc);
+            }
+        }
+
+        StateHasChanged();
+    }
+}

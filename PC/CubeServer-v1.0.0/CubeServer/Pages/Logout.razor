@@ -1,0 +1,38 @@
+﻿@page "/Logout"
+@layout BlankLayout
+
+@inject NavigationManager navman
+@inject ProtectedSessionStorage sessionStore
+@inject AuthenticationStateProvider auth
+
+<PageTitle>Logout</PageTitle>
+
+<h3>Good bye!</h3>
+
+<style>
+    h3 {
+        text-align: center;
+    }
+</style>
+
+@code {
+    Session session;
+
+    protected override async void OnInitialized()
+    {
+        ProtectedBrowserStorageResult<Session> result = await sessionStore.GetAsync<Session>("session");
+        if (result.Success)
+        {
+            session = result.Value;
+        }
+
+        if(session != null)
+        {
+            Global.db.DeleteSession(session.sessionId);
+            ((CustomAuthenticationStateProvider)auth).LogoutUser(Global.db, session.userId);
+            await sessionStore.DeleteAsync("session");
+            session = null;
+        }
+        //navman.NavigateTo("/login");
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "CubeServer",
+      "runtimeExecutable": "C:\\Users\\PrasathP\\.dotnet\\dotnet.exe",
+      "runtimeArgs": ["run", "--project", "PC/CubeServer-v1.0.0/CubeServer/CubeServer.csproj", "--urls", "http://localhost:5000"],
+      "port": 5000
+    }
+  ]
+}

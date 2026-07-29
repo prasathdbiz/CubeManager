@@ -1,0 +1,140 @@
+@inherits LayoutComponentBase
+
+<CascadingAuthenticationState>
+    <AuthorizeView>
+        <Authorized>
+            <CheckWinAuthState />
+            <MudThemeProvider Theme="Global.CubeMgrTheme" />
+            <MudDialogProvider />
+            <MudSnackbarProvider />
+
+            <MudLayout>
+                <MudAppBar Elevation="2">
+                    <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                    <Breadcrumbs />
+                    <MudSpacer />
+                    <MudMenu ActivationEvent="@MouseEvent.LeftClick" AnchorOrigin="Origin.BottomRight">
+                        <ActivatorContent>
+                            <MudChip Icon="@Icons.Material.Filled.Person" id="user_chip"><div id="user_name">@Global.userName</div></MudChip>
+                        </ActivatorContent>
+                        <ChildContent>
+                            <CubeServer.Pages.UserChip />
+                        </ChildContent>
+                    </MudMenu>
+
+                </MudAppBar>
+                <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Variant="@DrawerVariant.Mini" OpenMiniOnHover="true" Width="15%">
+                    <MudDrawerHeader Class="mb-4">
+                        <MudStack Row="true">
+                            <MudImage Src="images/tuvsud_logo.png" Height="46" Class="ms-n5"></MudImage>
+                            <MudText Typo="Typo.h5" Class="mt-n2"><b>Cube<br />Manager</b></MudText>
+                        </MudStack>
+                    </MudDrawerHeader>
+                    <NavMenu />
+                </MudDrawer>
+                <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Anchor="Anchor.Right" ClipMode="DrawerClipMode.Docked" Width="20%">
+                    <MudDrawerHeader Class="mb-4">
+                        <MudText Typo="Typo.h6" Class="mt-2">Cube Status</MudText>
+                    </MudDrawerHeader>
+                    <CubeStatus />
+                </MudDrawer>
+                <MudMainContent>
+                    <MudContainer Fixed="true" Class="my-0 pt-5">
+                        <ErrorBoundary @ref="_errorBoundary">
+                            <ChildContent>
+                                @Body
+                            </ChildContent>
+                            <ErrorContent Context="errorContext">
+                                <MudPaper Class="pa-6 ma-4" Elevation="3">
+                                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mb-4">
+                                        <MudText Typo="Typo.h6">Database or page error</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-2">
+                                            An error occurred while loading this page. This is typically caused by the database being unavailable.
+                                            You can continue using the navigation menu to browse other pages.
+                                        </MudText>
+                                    </MudAlert>
+                                    @if (_lastError != null)
+                                    {
+                                        <MudPaper Class="pa-4 mb-4" Style="background:#fafafa;">
+                                            <MudText Typo="Typo.subtitle2"><b>Details:</b> @_lastError.Message</MudText>
+                                        </MudPaper>
+                                    }
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@Recover">
+                                        @Icons.Material.Filled.Refresh Reload this page
+                                    </MudButton>
+                                </MudPaper>
+                            </ErrorContent>
+                        </ErrorBoundary>
+                    </MudContainer>
+                </MudMainContent>
+            </MudLayout>
+        </Authorized>
+        <NotAuthorized>
+            <MudLayout>
+            <h3>Not Authorized</h3>
+            </MudLayout>
+        </NotAuthorized>
+    </AuthorizeView>
+</CascadingAuthenticationState>
+
+<style>
+    #user_chip {
+        background-color: #d1d4d3;
+    }
+
+    #user_name {
+        min-width: 50px;
+        text-align: center;
+    }
+</style>
+
+@code {
+    bool _drawerOpen = true;
+    string user;
+    ErrorBoundary _errorBoundary;
+    Exception _lastError;
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected override void OnParametersSet()
+    {
+        _lastError = null;
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    void Recover()
+    {
+        _lastError = null;
+        _errorBoundary?.Recover();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_errorBoundary != null)
+        {
+            var fi = typeof(ErrorBoundary).GetField("<CurrentException>k__BackingField",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            if (fi != null)
+            {
+                _lastError = fi.GetValue(_errorBoundary) as Exception;
+            }
+            else
+            {
+                var pi = typeof(ErrorBoundary).GetProperty("CurrentException",
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+                if (pi != null) _lastError = pi.GetValue(_errorBoundary) as Exception;
+            }
+            if (_lastError != null)
+            {
+                StateHasChanged();
+            }
+        }
+        return base.OnAfterRenderAsync(firstRender);
+    }
+}

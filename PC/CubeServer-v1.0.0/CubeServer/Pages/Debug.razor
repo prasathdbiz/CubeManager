@@ -1,0 +1,308 @@
+@page "/Debug"
+@attribute [Authorize(Roles = "Administrator")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Hosting
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Debug</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" Label="Report Type" Placeholder="Select Report Type" AnchorOrigin="Origin.BottomCenter" ValueChanged="ReportSelected">
+                    <MudSelectItem Value="@("Daily")" />
+                    <MudSelectItem Value="@("Monthly")" />
+                    <MudSelectItem Value="@("Statistical")" />
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudDatePicker Label="@date1Str" @bind-Date="date1" For="@(() => date1)" Class="me-4"
+                               DateFormat="yyyy-MM-dd" />
+            </MudItem>
+            @if (date2required)
+            {
+                <MudItem xs="12" md="3">
+                    <MudDatePicker Label="End Date" @bind-Date="date2" For="@(() => date2)" Class="me-4"
+                               DateFormat="yyyy-MM-dd" />
+                </MudItem>
+            }
+            <MudItem xs="12" md="3">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Print"
+                            OnClick="@(() => GenerateReports())" Class="px-6 mt-4">Generate Reports</MudButton>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Mail"
+                           OnClick="@(() => EmailReports())" Class="px-6 mt-4">Email Reports</MudButton>
+            </MudItem>
+        </MudGrid>
+    }
+    @if (reportInProgress)
+    {
+        <MudProgressLinear Color="Color.Info" Indeterminate="true" />
+    }
+}
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator" };
+
+    bool dataAvail;
+    MudDataGrid<Report> table;
+    List<Report> reports;
+    Report selectedItem;
+    string statusMessage;
+    string searchStr;
+
+    string reportType = "";
+    DateTime? date1, date2;
+    string date1Str = "Start Date";
+    bool date2required = true;
+    string pdffile = "Reports/a.pdf";
+
+    bool reportInProgress = false;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            dataAvail = true;
+
+            StateHasChanged();
+        }
+    }
+
+    private async void GenerateReports()
+    {
+        bool status;
+        reports = new List<Report>();
+        try
+        {
+            if (reportType == "Daily" && date1.HasValue)
+            {
+                reportInProgress = true;
+                status = await Global.reportGenerator.GenerateDailyReportsForDay((DateTime)date1, user.Identity.Name);
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error generating daily reports.";
+                }
+                reportInProgress = false;
+            }
+            else if (reportType == "Monthly" && date1.HasValue && date2.HasValue)
+            {
+                reportInProgress = true;
+                DateTime now = DateTime.Now;
+
+                // last month
+                DateTime lastMonth = now.AddMonths(-1);
+                DateTime dtStart = new DateTime(lastMonth.Year, lastMonth.Month, 1);
+                DateTime dtEnd = dtStart.AddMonths(1).AddTicks(-1);
+
+                status = await Global.reportGenerator.GenerateAllMonthlyReportsForRange(dtStart, dtEnd, user.Identity.Name);
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error generating monthly reports.";
+                }
+                reportInProgress = false;
+            }
+            else if (reportType == "Statistical" && date1.HasValue && date2.HasValue)
+            {
+                reportInProgress = true;
+                DateTime now = DateTime.Now;
+
+                // last month
+                DateTime lastMonth = now.AddMonths(-1);
+                DateTime dtStart = new DateTime(lastMonth.Year, lastMonth.Month, 1);
+                DateTime dtEnd = dtStart.AddMonths(1).AddTicks(-1);
+
+                status = await Global.reportGenerator.GenerateAllStatisticalReportsForRange(dtStart, dtEnd, user.Identity.Name);
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error generating statistical reports.";
+                }
+                reportInProgress = false;
+            }
+
+            dataAvail = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            reportInProgress = false;
+        }
+    }
+
+    private void EmailReports()
+    {
+        bool status;
+        try
+        {
+            if (reportType == "Daily" && date1.HasValue)
+            {
+                reportInProgress = true;
+                status = Global.emailer.SendDailyReports();
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error emailing daily reports.";
+                }
+                reportInProgress = false;
+            }
+            else if (reportType == "Monthly" && date1.HasValue && date2.HasValue)
+            {
+                reportInProgress = true;
+                status = Global.emailer.SendMonthlyReports();
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error emailing monthly reports.";
+                }
+                reportInProgress = false;
+            }
+            else if (reportType == "Statistical" && date1.HasValue && date2.HasValue)
+            {
+                reportInProgress = true;
+                status = Global.emailer.SendStatisticalReports();
+                if (status)
+                {
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error emailing statistical reports.";
+                }
+                reportInProgress = false;
+            }
+
+            dataAvail = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            reportInProgress = false;
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Report p, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(p))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Report> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Reports/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Quotation> items)
+    {
+        int i = items.Count;
+    }
+
+    private void ReportSelected(string selected)
+    {
+        if (selected == "Daily")
+        {
+            reportType = selected;
+            date1Str = "Date";
+            date2required = false;
+        }
+        else if (selected == "Monthly")
+        {
+            reportType = selected;
+            date1Str = "Start Date";
+            date2required = true;
+        }
+        else if (selected == "Statistical")
+        {
+            reportType = selected;
+            date1Str = "Start Date";
+            date2required = true;
+        }
+
+        StateHasChanged();
+    }
+}
+

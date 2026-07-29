@@ -1,0 +1,336 @@
+@page "/Settings"
+
+@attribute [Authorize(Roles = "Administrator")]
+
+@using System.ComponentModel.DataAnnotations
+@using System.Text
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Settings</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">@errMsgs</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Outgoing Emails</MudText>
+                <MudTextField Label="SMTP Server" @bind-Value="smtpServer" For="@(() => smtpServer)" />
+                <MudTextField Label="SMTP Port" @bind-Value="smtpPort" For="@(() => smtpPort)" />
+                <MudTextField Label="Sender Name" @bind-Value="senderName" For="@(() => senderName)" />
+                <MudTextField Label="Sender Email" InputType="InputType.Email" @bind-Value="senderEmail" For="@(() => senderEmail)" />
+                <MudTextField Label="Sender Password" InputType="InputType.Password" @bind-Value="senderPassword" For="@(() => senderPassword)" />
+                <MudTextField Label="Email Bcc" InputType="InputType.Email" @bind-Value="emailBcc" For="@(() => emailBcc)" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="UpdateEmailServer">Update</MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Concrete Grades</MudText>
+                <MudTextField @bind-Value="cGradeStr" For="@(() => cGradeStr)"
+                    Variant="Variant.Outlined" Lines="10" Class="mt-0"/>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="UpdateCGrade">Update</MudButton>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Concrete Types</MudText>
+                <MudTextField @bind-Value="cTypeStr" For="@(() => cTypeStr)"
+                              Variant="Variant.Outlined" Lines="10" Class="mt-0" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="UpdateCType">Update</MudButton>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Test Criteria</MudText>
+                <MudTextField @bind-Value="testCriStr" For="@(() => testCriStr)"
+                              Variant="Variant.Outlined" Lines="10" Class="mt-0" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-4" OnClick="UpdateTestCriteria">Update</MudButton>
+            </MudPaper>
+        </MudItem>
+        <MudDivider />
+        <MudItem xs="12" Class="mt-4">
+            <TestSpecList />
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    List<string> errMsgs = new List<string>();
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator" };
+
+    bool dataOk;
+
+    List<int> concreteGrades = new List<int>();
+    string cGradeStr;
+    List<string> concreteTypes = new List<string>();
+    string cTypeStr;
+    List<string> testCriteria = new List<string>();
+    string testCriStr;
+
+    string smtpServer;
+    int smtpPort;
+    string senderName;
+    string senderEmail;
+    string senderPassword;
+    string emailBcc;
+
+    protected override async void OnInitialized()
+    {
+        bool status;
+        StringBuilder sb = new StringBuilder();
+
+        user = (await authenticationStateTask).User;
+        try
+        {
+            // email
+            smtpServer = Global.app.settings["SmtpServer"];
+            smtpPort = (int)Global.app.par["SmtpPort"];
+            senderName = Global.app.settings["SenderName"];
+            senderEmail = Global.app.settings["SenderEmail"];
+            senderPassword = Global.app.settings["SenderPassword"];
+            emailBcc = Global.app.settings["EmailBcc"];
+
+            // concrete grades
+            status = Global.db.GetConcreteGrades(concreteGrades);
+            if (status)
+            {
+                sb.Clear();
+                foreach(int s in concreteGrades)
+                {
+                    sb.AppendLine(s.ToString());
+                }
+                cGradeStr = sb.ToString();
+            }
+            else
+            {
+                errMsgs.Add("Error reading concrete grades.");
+            }
+
+            // concrete types
+            status = Global.db.GetConcreteTypes(concreteTypes);
+            if (status)
+            {
+                sb.Clear();
+                foreach (string s in concreteTypes)
+                {
+                    sb.AppendLine(s);
+                }
+                cTypeStr = sb.ToString();
+            }
+            else
+            {
+                errMsgs.Add("Error reading concrete types.");
+            }
+
+            // test criteria
+            status = Global.db.GetTestCriteria(testCriteria);
+            if (status)
+            {
+                sb.Clear();
+                foreach (string s in testCriteria)
+                {
+                    sb.AppendLine(s);
+                }
+                testCriStr = sb.ToString();
+            }
+            else
+            {
+                errMsgs.Add("Error reading test criteria.");
+            }
+
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsgs == null)
+            {
+                errMsgs = new List<string>();
+            }
+            errMsgs.Add(ex.Message);
+        }
+    }
+
+    private async void UpdateCGrade()
+    {
+        concreteGrades.Clear();
+
+        string[] sarr = cGradeStr.Split(Global.crSeparator, 
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach(string s in sarr)
+        {
+            int i;
+            if (int.TryParse(s, out i))
+            {
+                concreteGrades.Add(i);
+            }
+        }
+        try
+        {
+            bool status = Global.db.UpdateConcreteGrades(concreteGrades, user.Identity.Name);
+            if (status)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Updated Concrete Grades successfully.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Concrete Grades", par);
+                await dialog.Result;
+
+                StateHasChanged();
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Concrete Grades.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Concrete Grades", par);
+                await dialog.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsgs == null)
+            {
+                errMsgs = new List<string>();
+            }
+            errMsgs.Add(ex.Message);
+        }
+    }
+
+    private async void UpdateCType()
+    {
+        concreteTypes.Clear();
+
+        string[] sarr = cTypeStr.Split(Global.crSeparator, 
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (string s in sarr)
+        {
+            concreteTypes.Add(s);
+        }
+        try
+        {
+            bool status = Global.db.UpdateConcreteTypes(concreteTypes, user.Identity.Name);
+            if (status)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Updated Concrete Types successfully.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Concrete Types", par);
+                await dialog.Result;
+
+                StateHasChanged();
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Concrete Types.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Concrete Types", par);
+                await dialog.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsgs == null)
+            {
+                errMsgs = new List<string>();
+            }
+            errMsgs.Add(ex.Message);
+        }
+    }
+
+    private async void UpdateTestCriteria()
+    {
+        testCriteria.Clear();
+
+        string[] sarr = testCriStr.Split(Global.crSeparator, 
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        foreach (string s in sarr)
+        {
+            testCriteria.Add(s);
+        }
+        try
+        {
+            bool status = Global.db.UpdateTestCriteria(testCriteria, user.Identity.Name);
+            if (status)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Updated Test Criteria successfully.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Test Criteria", par);
+                await dialog.Result;
+
+                StateHasChanged();
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Test Criteria.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Test Criteria", par);
+                await dialog.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsgs == null)
+            {
+                errMsgs = new List<string>();
+            }
+            errMsgs.Add(ex.Message);
+        }
+    }
+
+    private async void UpdateEmailServer()
+    {
+        Global.app.settings["SmtpServer"] = smtpServer;
+        Global.app.par["SmtpPort"] = smtpPort;
+        Global.app.settings["SenderName"] = senderName;
+        Global.app.settings["SenderEmail"] = senderEmail;
+        Global.app.settings["SenderPassword"] = senderPassword;
+        Global.app.settings["EmailBcc"] = emailBcc;
+        try
+        {
+            Global.db.SaveSettings("SmtpServer", Global.app.settings["SmtpServer"]);
+            Global.db.SaveNumericSettings("SmtpPort", Global.app.par["SmtpPort"]);
+            Global.db.SaveSettings("SenderName", Global.app.settings["SenderName"]);
+            Global.db.SaveSettings("SenderEmail", Global.app.settings["SenderEmail"]);
+            Global.db.SaveSettings("SenderPassword", Global.app.settings["SenderPassword"]);
+            Global.db.SaveSettings("EmailBcc", Global.app.settings["EmailBcc"]);
+
+            Global.emailer.SetSmtpServer(smtpServer, smtpPort, senderName, senderEmail, senderPassword);
+            Global.emailer.SetBcc(emailBcc);
+
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Updated Email Server parameters.");
+            var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Email Server", par);
+            await dialog.Result;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsgs == null)
+            {
+                errMsgs = new List<string>();
+            }
+            errMsgs.Add(ex.Message);
+        }
+
+    }
+
+}

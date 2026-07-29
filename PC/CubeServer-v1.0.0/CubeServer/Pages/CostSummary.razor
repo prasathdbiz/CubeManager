@@ -1,0 +1,212 @@
+@page "/CostSummary"
+@attribute [Authorize(Roles = "Administrator, DataEntry")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Hosting
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Reports</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudDatePicker Label="Start Date" @bind-Date="date1" For="@(() => date1)" Class="me-4"
+                               DateFormat="yyyy-MM-dd" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudDatePicker Label="End Date" @bind-Date="date2" For="@(() => date2)" Class="me-4"
+                            DateFormat="yyyy-MM-dd" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.RemoveRedEye"
+                            OnClick="@(() => ViewReports())" Class="px-6 mt-4">View</MudButton>
+            </MudItem>
+        </MudGrid>
+    }
+    @if (reportInProgress)
+    {
+        <MudProgressLinear Color="Color.Info" Indeterminate="true" />
+    }
+    <MudPaper MaxWidth="100%" Height="700px" Class="mt-4">
+        <iframe src="@pdffile" style="width: 100%;height: 100%;border: none;"></iframe>
+    </MudPaper>
+}
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "Service" };
+
+    bool dataAvail;
+    MudDataGrid<Report> table;
+    List<Report> reports;
+    Report selectedItem;
+    string statusMessage;
+    int totalReports;
+    string searchStr;
+
+    string reportType = "";
+    DateTime? date1, date2;
+    string pdffile = "Reports/a.pdf";
+
+    bool reportInProgress = false;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            DateTime date = DateTime.Today;
+            date1 = new DateTime(date.Year, date.Month, 1);
+            date2 = ((DateTime)date1).AddMonths(1).AddDays(-1);
+            dataAvail = true;
+
+            StateHasChanged();
+        }
+    }
+
+    private void Display()
+    {
+        StateHasChanged();
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private string ReleaseStr(int release)
+    {
+        if (release == 1) return "Manual Released";
+        else if (release == 2) return "Auto Released";
+        else return "No";
+    }
+
+    private void EditReport(Report p)
+    {
+        navman.NavigateTo($"/Reports/Edit/{p.Id}");
+    }
+
+    private async void ViewReports()
+    {
+        if (date1.HasValue && date2.HasValue)
+        {
+            reportInProgress = true;
+            try
+            {
+                string fn = await Global.reportGenerator.GenerateCostSummary((DateTime)date1, (DateTime)date2);
+                if (fn != null)
+                {
+                    pdffile = Path.Combine("Reports", fn);
+                    statusMessage = null;
+                }
+                else
+                {
+                    statusMessage = "Error generating report.";
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+            reportInProgress = false;
+
+            StateHasChanged();
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Report p, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(p))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Report> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Reports/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Quotation> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Report, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.ReportType.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.FileName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ReportDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ReleaseDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+
+}
+

@@ -1,0 +1,123 @@
+@page {
+    font-size: 10pt;
+    size: portrait A4;
+    margin: 1cm;
+    margin-top: 4cm;
+
+    @top-center {
+        content: element(header);
+        width: 100%;
+    }
+
+    @bottom-center {
+        content: element(footer);
+        width: 100%;
+    }
+
+    @bottom-right {        
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 8pt;
+        width:100px;
+    }
+}
+
+body {
+    font-family: Arial;
+    font-size: 8pt;
+}
+
+#top_header td {
+    width: 100%;
+    vertical-align: top;
+}
+
+    #top_header td:first-child {
+        width:70%;
+    }
+
+#left_header {
+    width: 500px;
+}
+
+    #left_header td:first-child {
+        width: 2cm;
+    }
+
+#center_header {
+    width: 100%;
+    border: 1px solid black;
+    border-collapse: collapse;
+    background-color: #D1D4D3;
+}
+
+    #center_header td {
+        padding: 4px;
+    }
+
+#right_header {
+    border-collapse: collapse;
+    width: 250px;
+    font-size: 7pt;
+}
+
+    #right_header td {
+        vertical-align: top;
+    }
+
+        #right_header td:first-child {
+            width: 1.5cm;
+        }
+
+#title {
+    font-size: 10pt;
+    font-weight: bold;
+}
+
+#logo {
+    width: 50px;
+}
+
+header {
+    position: fixed;
+    top: 0cm;
+    width: 100%;
+    margin-top: -3cm;
+}
+
+footer {
+    position: fixed;
+    bottom: 0cm;
+    width: 100%;
+}
+
+.cubetable {
+    border-collapse: collapse;
+    border: 1px solid black;
+    font-size: 6pt;
+}
+
+    .cubetable th {
+        border: 1px solid black;
+        background-color: #0046AD;
+        color: white;
+        padding: 2px;
+        text-align: center;
+    }
+
+    .cubetable td {
+        text-align: center;
+        vertical-align: top;
+        padding: 4px;
+        white-space: nowrap;
+    }
+
+#remarks {
+    width: 100%;
+    border: 1px solid black;
+    font-size: 7pt;
+}
+
+    #remarks td {
+        vertical-align: top;
+    }
+

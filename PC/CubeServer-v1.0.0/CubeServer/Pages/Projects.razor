@@ -1,0 +1,268 @@
+@page "/Projects"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Projects</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@NewProject">New Project</MudButton>
+            </MudItem>
+
+            <MudSpacer />
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </MudItem>
+            <MudSpacer></MudSpacer>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudItem xs="12" md="4" Style="text-align:right">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedProject())" Class="px-6">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedProject())" Class="ms-4">Delete</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDataGrid @ref="table" Items="@projects" Hover="true" ColumnResizeMode="ResizeMode.Container" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" T="Project"
+                 QuickFilter="@QuickFilter">
+        <Columns>
+            <PropertyColumn Property="x => x.ProjectCode" Title="Project Id" />
+            <PropertyColumn Property="x => x.CurSCONum" Title="SCO No." />
+            <PropertyColumn Property="x => Util.Truncate(x.ProjectName, 40)" Title="Project Name" />
+            <PropertyColumn Property="x => Util.Truncate(x.SoldToCompany, 40)" Title="Sold To" />
+            <PropertyColumn Property="x => x.ReportsRequired" Title="Reports Required" />
+            <PropertyColumn Property="x => x.PricePerCube" Title="Price Per Cube" Format="C" />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Project" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataAvail;
+    MudDataGrid<Project> table;
+    List<Project> projects;
+    Project selectedItem;
+    string statusMessage;
+    int totalProjects;
+    string searchStr;
+
+
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        projects = new List<Project>();
+        try
+        {
+            bool status = Global.db.GetProjects(projects, out totalProjects);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading project data from database.";
+                totalProjects = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalProjects = 0;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+
+    private void EditProject(Project p)
+    {
+        navman.NavigateTo($"/Projects/Edit/{p.Id}");
+    }
+
+    private void EditSelectedProject()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditProject(table.SelectedItem);
+        }
+    }
+
+
+    private void NewProject()
+    {
+        navman.NavigateTo("/Projects/New");
+    }
+
+    private async void DeleteProject(Project p)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Project",
+            $"Do you really want to delete project {p.ProjectCode}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteProject(p.Id, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted Project {p.ProjectCode}.");
+                    Dialog.Show<InfoMsgBox>("Delete Project", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting Project {p.ProjectCode}.");
+                    Dialog.Show<InfoMsgBox>("Delete Project", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedProject()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteProject(table.SelectedItem);
+        }
+    }
+
+
+    // events
+    private string SelectedRowClassFunc(Project p, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(p))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Project> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Projects/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Quotation> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Project, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.ProjectCode.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SoldToCompany.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.CurSCONum.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ProjectName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ReportsRequired.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+

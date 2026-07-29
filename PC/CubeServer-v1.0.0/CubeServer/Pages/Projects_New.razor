@@ -1,0 +1,271 @@
+@page "/Projects/New/{quoNum:int}"
+@page "/Projects/New"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Projects/New</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">Project does not exist.</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        <MudPaper Class="pa-4" MaxWidth="@Global.contentMaxWidth">
+            <EditForm Model="@prj" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    <MudItem xs="6" >
+                        <MudSelect T="string" Label="Payment Terms" AnchorOrigin="Origin.BottomCenter" @bind-Value="@paymentTerms" 
+                            HelperText="Project ID will be automatically assigned based on this selection">
+                            <MudSelectItem Value="@("Cash")" />
+                            <MudSelectItem Value="@("Credit")" />
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6">
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Current SCO No." @bind-Value="prj.CurSCONum" For="@(() => prj.CurSCONum)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Quotation No." @bind-Value="prj.Quotation" For="@(() => prj.Quotation)"
+                                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectQuotation" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField Label="Project Name" @bind-Value="prj.ProjectName" For="@(() => prj.ProjectName)" Lines="3" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Bill To Company" @bind-Value="prj.BillToCompany" For="@(() => prj.BillToCompany)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Sold To Company" @bind-Value="prj.SoldToCompany" For="@(() => prj.SoldToCompany)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Bill To Address" @bind-Value="prj.BillToAddress" For="@(() => prj.BillToAddress)"
+                                      Lines="5 " />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Sold To Address" @bind-Value="prj.SoldToAddress" For="@(() => prj.SoldToAddress)"
+                                      Lines="5 " />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudText Class="mt-5">Reports Required:</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudCheckBox @bind-Checked="@prj.DailyReport" Label="Daily" ></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudCheckBox @bind-Checked="@prj.MonthlyReport" Label="Monthly"></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudCheckBox @bind-Checked="@prj.StatisticalReport" Label="Statistical"></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField Label="Price / Cube" @bind-Value="prj.PricePerCube" For="@(() => prj.PricePerCube)" Format="C" />
+                    </MudItem>
+                    <MudDivider xs="12" Class="mt-3"/>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Applicant Name" @bind-Value="prj.ApplicantName" For="@(() => prj.ApplicantName)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Designation" @bind-Value="prj.ApplicantDesignation" For="@(() => prj.ApplicantDesignation)" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField Label="Email Address" @bind-Value="emailAddr" For="@(() => emailAddr)"
+                                      Lines="3" HelperText="Place each email on a separate line" />
+                    </MudItem>
+                    <MudItem xs="9" md="6">
+                        <MudTextField Label="Email CC" @bind-Value="emailCC" For="@(() => emailCC)"
+                                      Lines="3" HelperText="Place each email on a separate line" />
+                    </MudItem>
+                    <MudItem xs="12" Class="mt-3"></MudItem>
+
+                    <MudItem xs="12" md="3">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" >Add This Project</MudButton>
+                    </MudItem>
+                    <MudItem xs="12" md="10" Class="mt-4">
+                        <ValidationSummary />
+                    </MudItem>
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Parameter]
+    public int quoNum { get; set; }
+
+    bool success;
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Project prj = new Project() { Id = 0, PaymentCode="C"};
+    Quotation quo;
+    string paymentTerms;
+
+    string emailAddr = "";
+    string emailCC = "";
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        try
+        {
+            if (quoNum > 0)
+            {
+                quo = Global.db.GetQuotation(quoNum);
+                if (quo != null)
+                {
+                    prj.PaymentCash = quo.PaymentTerms.ToLower().Contains("cash");
+                    paymentTerms = prj.PaymentCash ? "Cash" : "Credit";
+                    prj.Quotation = quo.QuoNum;
+                    prj.ProjectName = quo.QuoSubject;
+
+                    using (StringReader rdr = new StringReader(quo.SoldToParty))
+                    {
+                        prj.SoldToCompany = rdr.ReadLine();
+                        prj.SoldToAddress = rdr.ReadToEnd();
+                    }
+
+                    using (StringReader rdr = new StringReader(quo.BillToParty))
+                    {
+                        prj.BillToCompany = rdr.ReadLine();
+                        prj.BillToAddress = rdr.ReadToEnd();
+                    }
+
+                    prj.ApplicantName = quo.AttnName;
+                    prj.EmailAddr = Util.LinesToStringList(quo.AttnEmail);
+                    prj.PricePerCube = quo.Price;
+
+                    emailAddr = quo.AttnEmail;
+
+                    dataOk = true;
+                }
+                else
+                {
+                    dataOk = false;
+                }
+            }
+            else
+            {
+                dataOk = true;
+            }
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+        }
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        Project p = (Project)context.Model;
+        p.EmailAddr = Util.LinesToStringList(emailAddr);
+        p.EmailCC = Util.LinesToStringList(emailCC);
+
+        try
+        {
+            if (Global.db.HasScoNum(p.CurSCONum))
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"SCO No. {p.CurSCONum} has been already been used.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("New Project", par);
+                await dialog.Result;
+                return;
+            }
+
+            if (!Global.db.HasQuotation(p.Quotation))
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Quotation No. {p.Quotation} does not exist.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("New Project", par);
+                await dialog.Result;
+                return;
+            }
+
+            if (Global.db.CountProjectsWithQuotation(p.Quotation))
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Quotation No. {p.Quotation} has been already been used.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("New Project", par);
+                await dialog.Result;
+                return;
+            }
+
+            InsertProject(p);
+        }
+        catch (Exception ex)
+        {
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Error: {ex.Message}");
+            var dialog = await DialogService.ShowAsync<InfoMsgBox>("New Project", par);
+            await dialog.Result;
+        }
+    }
+
+    // private void Submit()
+    // {
+    //     //InsertProject(prj);
+    // }
+
+    private async void InsertProject(Project p)
+    {       
+        try
+        {
+            success = Global.db.InsertProject(p, user.Identity.Name);
+
+            if (success)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Project {p.ProjectCode} has been added successfully.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("New Project", par);
+                await dialog.Result;
+
+                navman.NavigateTo($"/Projects/View/{p.Id}");
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error adding Project {p.ProjectCode}.");
+                DialogService.Show<InfoMsgBox>("New Project", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Error: {ex.Message}");
+            DialogService.Show<InfoMsgBox>("New Project", par);
+        }
+    }
+
+    private async void SelectQuotation()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<QuotationSelect>("Select Quotation", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            Quotation q = (Quotation)result.Data;
+            prj.Quotation = q.QuoNum;
+
+            StateHasChanged();
+        }
+    }
+
+    
+}

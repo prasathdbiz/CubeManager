@@ -1,0 +1,247 @@
+@page "/"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Plotly.Blazor
+@using Plotly.Blazor.Traces
+@using Plotly.Blazor.LayoutLib
+@using Plotly.Blazor.LayoutLib.XAxisLib
+
+<PageTitle>Home</PageTitle>
+
+@* <MudText Typo="Typo.h3" GutterBottom="true">Cubes to be Tested Today</MudText>
+<MudText Class="mb-8">TODO: List of cubes and their status</MudText> *@
+@if (statusMessage != null)
+{
+    <MudAlert Severity="Severity.Error" Class="mb-4">@statusMessage</MudAlert>
+}
+<MudPaper Class="pa-4">
+<PlotlyChart style="height: 80vh; min-height: 350px" @bind-Config="config" @bind-Layout="layout1" @bind-Data="data1" @ref="tested" />
+</MudPaper>
+<MudPaper Class="mt-8 pa-4">
+<PlotlyChart style="height: 80vh; min-height: 350px" @bind-Config="config" @bind-Layout="layout2" @bind-Data="data2" @ref="untested" />
+</MudPaper>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    private PlotlyChart tested;
+    private PlotlyChart untested;
+    private Config config;
+    private Layout layout1, layout2;
+    private IList<ITrace> data1, data2;
+    private string statusMessage;
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+        List<ClaimsIdentity> list = (List<ClaimsIdentity>)user.Identities;
+        Global.userName = list.Count > 1 ? list[1].Name : list[0].Name;
+
+        List<object> cubesTested, cubesUntested;
+        List<object> batchesTested, batchesUntested;
+        List<object> cubeSetsTested, cubeSetsUntested;
+        List<object> projectsTested, projectsUntested;
+
+        cubesTested = ZeroValues(30);
+        batchesTested = ZeroValues(30);
+        cubeSetsTested = ZeroValues(30);
+        projectsTested = ZeroValues(30);
+        cubesUntested = ZeroValues(30);
+        batchesUntested = ZeroValues(30);
+        cubeSetsUntested = ZeroValues(30);
+        projectsUntested = ZeroValues(30);
+
+        try
+        {
+            bool testedOk = Global.db != null && Global.db.GetTestedStats(30, out cubesTested, out batchesTested, out cubeSetsTested, out projectsTested);
+            bool untestedOk = Global.db != null && Global.db.GetUntestedStats(30, out cubesUntested, out batchesUntested, out cubeSetsUntested, out projectsUntested);
+            if (!testedOk || !untestedOk)
+            {
+                statusMessage = "Database is unavailable. Showing empty chart data.";
+            }
+        }
+        catch (Exception ex)
+        {
+            statusMessage = $"Database is unavailable. Showing empty chart data. {ex.Message}";
+        }
+
+        config = new Config
+            {
+                Responsive = true
+            };
+
+        layout1 = new Layout
+            {
+                Title = new Plotly.Blazor.LayoutLib.Title
+                {
+                    Text = "Test Data for Last 30 Days",
+                },
+                PaperBgColor = "white",
+                PlotBgColor = "white",
+                Font = new Font
+                {
+                    Color = "black",
+                    Family = "Arial",
+                    Size = 12
+                },
+                BarMode = BarModeEnum.Group,
+                XAxis = new List<XAxis>
+                {
+                    new()
+                    {
+                        AutoRange = AutoRangeEnum.True,
+                        TickFormat = "%Y-%m-%d",
+                        TickAngle = -45,
+                        DTick = 3600*24*1000,
+                        Title = new  Plotly.Blazor.LayoutLib.XAxisLib.Title
+                        {
+                            Text = "Date"
+                        },
+                        Type = TypeEnum.Date
+                    }
+                },
+                YAxis = new List<YAxis>
+                {
+                    new()
+                    {
+                        Title = new Plotly.Blazor.LayoutLib.YAxisLib.Title
+                        {
+                            Text = "Qty"
+                        }
+                    }
+                }
+            };
+
+        layout2 = new Layout
+            {
+                Title = new Plotly.Blazor.LayoutLib.Title
+                {
+                    Text = "Untested for Last 30 Days",
+                },
+                PaperBgColor = "white",
+                PlotBgColor = "white",
+                Font = new Font
+                {
+                    Color = "black",
+                    Family = "Arial",
+                    Size = 12
+                },
+                BarMode = BarModeEnum.Group,
+                XAxis = new List<XAxis>
+                {
+                    new()
+                    {
+                        AutoRange = AutoRangeEnum.True,
+                        TickFormat = "%Y-%m-%d",
+                        TickAngle = -45,
+                        DTick = 3600*24*1000,
+                        Title = new  Plotly.Blazor.LayoutLib.XAxisLib.Title
+                        {
+                            Text = "Date"
+                        },
+                        Type = TypeEnum.Date
+                    }
+                },
+                YAxis = new List<YAxis>
+                {
+                    new()
+                    {
+                        Title = new Plotly.Blazor.LayoutLib.YAxisLib.Title
+                        {
+                            Text = "Qty"
+                        }
+                    }
+                }
+            };
+
+        data1 = new List<ITrace>
+        {
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)projectsTested, // RandomValues(30, 1, 10),
+                Name = "Projects"
+            },
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)cubeSetsTested, // RandomValues(30, 1, 20),
+            Name = "Cube Sets"
+            },
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)cubesTested, //RandomValues(30, 1, 50),
+                Name = "Cubes"
+            }
+        };
+
+        data2 = new List<ITrace>
+        {
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)projectsUntested, //RandomValues(30, 1, 5),
+                Name = "Projects"
+            },
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)cubeSetsUntested, //RandomValues(30, 1, 10),
+                Name = "Cube Sets"
+            },
+            new Bar
+            {
+                X = Last30Days(),
+                Y = (IList<object>)cubesUntested, //RandomValues(30, 1, 20),
+                Name = "Cubes"
+            }
+        };
+    }
+
+    private List<object> Last30Days()
+    {
+        List<object> list = new List<object>();
+        DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+
+        for (int i=30; i>0; i--)
+        {
+            DateOnly d = today.AddDays(- i);
+            list.Add(d.ToString("yyyy-MM-dd"));
+        }
+
+        return list;
+    }
+
+    private List<object> ZeroValues(int qty)
+    {
+        List<object> list = new List<object>();
+        for (int i = 0; i < qty; i++)
+        {
+            list.Add(0);
+        }
+
+        return list;
+    }
+
+    private List<object> RandomValues(int qty, int min, int max)
+    {
+        Random rng = new Random();
+
+        List<object> list = new List<object>();
+        for (int i = 0; i < qty; i++)
+        {
+            int val = rng.Next(min, max);
+            list.Add(val);
+        }
+
+        return list;
+    }
+
+}

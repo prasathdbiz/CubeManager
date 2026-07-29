@@ -1,0 +1,94 @@
+<MudDialog>
+    <DialogContent>
+        <MudTable Items="@scoList" @ref="table" Dense="true" Hover="true" RowClassFunc="@SelectedRowClassFunc"
+           @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                @if (readOnly)
+                {
+                    <MudText Typo="Typo.h6">SCO Numbers for Project</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h6">Add SCO No. for Project</MudText>
+                }
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>SCO Number</MudTh>
+                <MudTh>Last Update</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="SCONum">@context.ScoNumber</MudTd>
+                <MudTd DataLabel="LastUpdate">@context.LastUpdate.ToString("yyyy-MM-dd HH:mm:ss")</MudTd>
+            </RowTemplate>
+            @* <PagerContent>
+                <MudTablePager />
+            </PagerContent> *@
+        </MudTable>
+        @if (!readOnly)
+        {
+            <MudTextField Label="New SCO Number" @bind-Value="newSCONum" For="@(() => newSCONum)" Class="me-4" />
+        }
+    </DialogContent>
+    <DialogActions>
+        @if (readOnly)
+        {
+            <MudButton OnClick="Cancel">OK</MudButton>
+        }
+        else
+        {
+            <MudButton OnClick="Cancel">Cancel</MudButton>
+            <MudButton Color="Color.Primary" OnClick="Submit">Add New SCO Number</MudButton>
+        }
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public int projectId { get; set; }
+    [Parameter] public int newSCONum { get; set; }
+    [Parameter] public bool readOnly { get; set; }
+
+    List<SCONumber> scoList = new List<SCONumber>();
+    string filter;
+    string searchString1 = "";
+    SCONumber selectedItem1;
+    int selectedRowNumber;
+    MudTable<SCONumber> table;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            Global.db.GetSCONumbers(projectId, scoList);
+        }
+        catch (Exception ex)
+        {
+        }
+    }
+
+    private string SelectedRowClassFunc(SCONumber c, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(c))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    void Submit() 
+    {
+        MudDialog.Close(DialogResult.Ok(newSCONum));
+    }
+
+    void Cancel() => MudDialog.Cancel();
+}
+

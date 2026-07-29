@@ -1,0 +1,456 @@
+@page "/Quotations"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Quotations</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <div class="quotation-toolbar">
+            <div class="quotation-toolbar-main">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Success"
+                           OnClick="@NewQuotation"
+                           Class="quotation-toolbar-button quotation-add-button">
+                    <MudIcon Icon="@Icons.Material.Filled.Add" />
+                </MudButton>
+                <MudFileUpload T="IBrowserFile" FilesChanged="UploadQuotation">
+                    <ButtonTemplate>
+                        <MudButton HtmlTag="label"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.CloudUpload"
+                                   for="@context"
+                                   Class="quotation-toolbar-button">
+                            Upload Quotation
+                        </MudButton>
+                    </ButtonTemplate>
+                </MudFileUpload>
+                <div class="quotation-filter">
+                    <MudSelect T="string" Label="Confirmed" @bind-Value="@filterConfirmed" Dense FullWidth SelectedValuesChanged="@Display">
+                        <MudSelectItem Value="@("All")" />
+                        <MudSelectItem Value="@("Confirmed")" />
+                        <MudSelectItem Value="@("Not Confirmed")" />
+                    </MudSelect>
+                </div>
+                <div class="quotation-search">
+                    <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                                  AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+                </div>
+            </div>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <div class="quotation-toolbar-actions">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedQuotation())" Class="px-6 quotation-toolbar-button">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedQuotation())" Class="ms-4 quotation-toolbar-button">Delete</MudButton>
+                </div>
+            }
+        </div>
+    }
+
+    <MudDataGrid @ref="table" Items="@quotations" Hover="true" ColumnResizeMode="ResizeMode.Container" Class="xs-12 mt-3" 
+        RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" 
+        T="Quotation" QuickFilter="@QuickFilter">
+        <Columns>
+            <PropertyColumn Property="x => x.QuoNum" Title="Quotation no." />
+            <PropertyColumn Property="x => Util.Truncate(x.BillToParty, 40)" Title="Bill-To-Party" />
+            <PropertyColumn Property="x => x.QuoDate" Title="Date" Format="yyyy-MM-dd"/>
+            <PropertyColumn Property="x => x.AttnName" Title="Attn To" />
+            <PropertyColumn Property="x => Util.Truncate(x.QuoSubject, 40)" Title="Subject" />
+            <PropertyColumn Property="x => x.Currency" Title="Currency" />
+            <PropertyColumn Property="x => x.Price" Title="Price Per Cube" Format="C" />
+            <PropertyColumn Property="x => x.Confirmed" Title="Confirmed" />
+            @* @if (Util.CanEdit(user, editRoles))
+            {
+                <TemplateColumn Title="Action">
+                    <CellTemplate>
+                        <MudStack Row>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" 
+                            OnClick="@(() => EditQuotation(@context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                            OnClick="@(() => DeleteQuotation(@context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            } *@
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Quotation" PageSizeOptions=@(new int[] {10, 25, 50})  />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+<style>
+    .quotation-toolbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .quotation-toolbar-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        flex: 1 1 700px;
+    }
+
+    .quotation-toolbar-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex: 0 0 auto;
+    }
+
+    .quotation-toolbar-button {
+        min-height: 40px;
+    }
+
+    .quotation-add-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 48px;
+        padding-top: 3px !important;
+        padding-bottom: 0 !important;
+        padding-left: 0;
+        padding-right: 0;
+        position: relative;
+        top: 2px;
+    }
+
+    .quotation-add-button .mud-button-label {
+        align-items: flex-start;
+        justify-content: center;
+        width: 100%;
+        height: 100%;
+    }
+
+    .quotation-filter {
+        min-width: 180px;
+        flex: 0 0 180px;
+    }
+
+    .quotation-search {
+        min-width: 180px;
+        flex: 1 1 220px;
+    }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataAvail;
+    MudDataGrid<Quotation> table;
+    List<Quotation> quotations;
+    Quotation selectedItem;
+    string statusMessage;
+    int totalQuotations;
+    int quoToDelete;
+    string searchStr;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+    private string filterConfirmed = "All";
+
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            filterConfirmed = "All";
+            Display();
+        }
+
+        // test
+        //Quotation q = CMFunctions.PdfToQuotation(@"C:\CubeServer\pdf\Sample Quotation 1.pdf", user.Identity.Name);
+    }
+
+    private void Display()
+    {
+        bool status;
+        quotations = new List<Quotation>();
+        try
+        {
+            if (filterConfirmed == "All")
+            {
+                status = Global.db.GetQuotations(quotations, filterConfirmed, out totalQuotations);
+            }
+            else
+            {
+                status = Global.db.GetQuotations(quotations, filterConfirmed, out totalQuotations);
+            }
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading quotation data from database.";
+                totalQuotations = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalQuotations = 0;
+        }
+    }
+
+    private async void UploadQuotation(IBrowserFile file)
+    {
+        const long maxUploadBytes = 10 * 1024 * 1024;
+
+        if (file.ContentType != "application/pdf")
+        {
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Uploaded file is not a pdf file.");
+            Dialog.Show<InfoMsgBox>("Upload Quotation", par);
+            return;
+        }
+
+        if (file.Size > maxUploadBytes)
+        {
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Uploaded file is too large. Maximum supported size is {maxUploadBytes / (1024 * 1024)} MB.");
+            Dialog.Show<InfoMsgBox>("Upload Quotation", par);
+            return;
+        }
+
+        string subdir = DateTime.Now.ToString("yyyy-MM");
+        string path = Path.Combine(Global.quoPath, subdir);
+        if (!Directory.Exists(path)) Directory.CreateDirectory(path);
+        string fn = DateTime.Now.ToString("yyyyMMddHHmmss") + ".pdf";
+        path = Path.Combine(path, fn);
+
+        try
+        {
+            await using FileStream fs = new(path, FileMode.Create);
+            await file.OpenReadStream(maxUploadBytes).CopyToAsync(fs);
+        }
+        catch (Exception ex)
+        {
+            if (File.Exists(path))
+            {
+                File.Delete(path);
+            }
+
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Error uploading quotation pdf: {ex.Message}");
+            Dialog.Show<InfoMsgBox>("Upload Quotation", par);
+            return;
+        }
+
+        try
+        {
+            Quotation q = CMFunctions.PdfToQuotation(path, user.Identity.Name);
+            if (q != null)
+            {
+                if (Global.db.InsertQuotation(q, user.Identity.Name))
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Quotation {q.QuoNum} added.");
+                    var dialog = await Dialog.ShowAsync<InfoMsgBox>("Upload Quotation", par);
+                    await dialog.Result;
+
+                    navman.NavigateTo($"/Quotations/View/{q.QuoNum}");
+                    //Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error inserting quotation {q.QuoNum} into database.");
+                    Dialog.Show<InfoMsgBox>("Upload Quotation", par);
+                }
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error parsing quotation pdf.");
+                Dialog.Show<InfoMsgBox>("Upload Quotation", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+        }
+    }
+
+
+    private void EditQuotation(Quotation q)
+    {
+        navman.NavigateTo($"/Quotations/Edit/{q.QuoNum}");
+    }
+
+    private void EditSelectedQuotation()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditQuotation(table.SelectedItem);
+        }
+    }
+
+    private void NewQuotation()
+    {
+        navman.NavigateTo("/Quotations/New");
+    }
+
+    private async void DeleteQuotation(Quotation q)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Quotation",
+            $"Do you really want to delete quotation {q.QuoNum}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteQuotation(q.QuoNum, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted Quotation {q.QuoNum}.");
+                    Dialog.Show<InfoMsgBox>("Delete Quotation", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting Quotation {q.QuoNum}.");
+                    Dialog.Show<InfoMsgBox>("Delete Quotation", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedQuotation()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteQuotation(table.SelectedItem);
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Quotation q, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(q))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+
+    private void RowClicked(DataGridRowClickEventArgs<Quotation> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Quotations/View/{args.Item.QuoNum}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Quotation> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Quotation, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.QuoNum.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.BillToParty.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.QuoSubject.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+

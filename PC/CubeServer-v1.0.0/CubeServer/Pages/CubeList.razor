@@ -1,0 +1,297 @@
+@using System.Text.RegularExpressions;
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+    <MudGrid Justify="Justify.Center">
+        <MudPaper Class="pa-4" Width="1000px">     
+        <MudItem xs="12" >
+            <MudDataGrid ReadOnly="@(rdonly && !Util.CanEdit(user, editRoles))" @ref="table" Items="@cubes" Hover="true" Class="xs-12"
+                         RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                         T="Cube" EditMode="DataGridEditMode.Cell" EditTrigger="DataGridEditTrigger.OnRowClick" 
+                         CommittedItemChanges="AutoFill" Dense>
+                <Columns>
+                    <PropertyColumn Property="x => x.BarcodeStr" Title="Barcode" />
+                    <PropertyColumn Property="x => x.SampleRef" Title="Sample Ref" />
+                    <PropertyColumn Property="x => CubeTested(x.TestResult)" Title="Tested" IsEditable="false"/>
+
+                </Columns>
+                @* <PagerContent>
+                    <MudDataGridPager T="Cube" PageSizeOptions=@(new int[] {10, 25, 50}) />
+                </PagerContent>    *@     
+            </MudDataGrid>
+        </MudItem>
+        @if (!rdonly && Util.CanEdit(user, editRoles))
+        {
+            <MudItem xs="12">
+            @if (newCubes)
+            {
+                <MudGrid>
+                <MudItem xs="12">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="UpdateBarcodes">
+                New Barcodes
+                </MudButton>
+                </MudItem>
+                </MudGrid>
+            }
+            else
+            {
+                <MudGrid>
+                <MudItem xs="12" md="4">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="UpdateBarcodes">
+                    Update Barcodes
+                </MudButton>
+                </MudItem>
+                <MudItem md="4" />
+                <MudItem xs="12" md="4" Style="text-align:right">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="AddCube">
+                Add Cube
+                </MudButton>
+                </MudItem>
+                </MudGrid>
+            }
+            </MudItem>
+       }
+        </MudPaper>
+    </MudGrid>
+}
+
+
+@code {
+    [Parameter]
+    public int scoNum { get; set; }
+    [Parameter]
+    public int batchId { get; set; }
+    [Parameter]
+    public int cubeQty { get; set; }
+    [Parameter]
+    public bool rdonly { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+
+    MudDataGrid<Cube> table;
+    List<Cube> cubes = new List<Cube>();
+    Cube selectedItem;
+    private int selectedRowNumber = -1;
+    int totalCubes;
+    bool dataAvail;
+    string statusMessage;
+    bool newCubes;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    // protected override bool ShouldRender()
+    // {
+    //     return (cubes.Count != cubeQty);
+    // }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender || cubes.Count != cubeQty)
+        {
+            Display();
+        }
+    }
+
+    private string CubeTested(int testResult)
+    {
+        return testResult == 0 ? "N" : "Y";
+    }
+
+    private void Display()
+    {
+        bool status;
+        cubes = new List<Cube>();
+        try
+        {
+            status = Global.db.GetCubes(cubes, scoNum, batchId, CubeViewOption.All, out totalCubes);
+            if (status && totalCubes == 0)
+            {
+                cubes = new List<Cube>();
+                for (int i=0; i<cubeQty; i++)
+                {
+                    Cube c = new Cube()
+                        {
+                            ScoNum = scoNum,
+                            BatchId = batchId
+                        };
+                    cubes.Add(c);
+                }
+            }
+
+            newCubes = totalCubes == 0;
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading cube data from database.";
+                totalCubes = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalCubes = 0;
+            newCubes = false;
+        }
+    }
+
+    private void UpdateBarcodes()
+    {
+        bool success;
+        try
+        {
+            if (newCubes)
+            {
+                success = Global.db.InsertCubes(scoNum, batchId, cubes, user.Identity.Name);
+            }
+            else
+            {
+                success = Global.db.UpdateCubeBarcodes(cubes, user.Identity.Name);
+            }
+
+            if (success)
+            {
+                StateHasChanged();
+                totalCubes = cubes.Count;
+                newCubes = false;
+
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Cube barcodes for Batch {scoNum}-{batchId} has been updated successfully.");
+                DialogService.ShowAsync<InfoMsgBox>("Update Cube Barcodes", par);
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating barcodes for Batch {scoNum}-{batchId}. Barcodes may be out of range.");
+                DialogService.Show<InfoMsgBox>("Update Cube Barcodes", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+        }
+    }
+
+    private void AddCube()
+    {
+        navman.NavigateTo($"/Cubes/New/{scoNum}/{batchId}");
+    }
+
+    // events
+    private string SelectedRowClassFunc(Cube q, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(q))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Cube> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Cubes/View/{args.Item.Barcode}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    private void AutoFill(Cube c)
+    {
+        if (c == cubes[0]) 
+        {            
+            if (cubes[0].Barcode > 0)
+            {
+                for (int i = 1; i < cubes.Count; i++)
+                {
+                    if (cubes[i].Barcode == 0)
+                    {
+                        cubes[i].Barcode = cubes[0].Barcode + i;
+                    }
+                }
+            }
+
+            if (cubes[0].SampleRef.Length > 0)
+            {
+                Regex re = new Regex(@"(.*\D+)(\d+)");
+                Match result = re.Match(cubes[0].SampleRef);
+
+                string prefix = result.Groups[1].Value;
+                string index = result.Groups[2].Value;
+
+                int num;
+                if (int.TryParse(index, out num))
+                {
+                    for (int i = 1; i < cubes.Count; i++)
+                    {
+                        if (cubes[i].SampleRef.Length == 0)
+                        {
+                            cubes[i].SampleRef = string.Format("{0}{1}", prefix, num + i);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+}

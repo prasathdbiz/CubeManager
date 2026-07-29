@@ -1,0 +1,80 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudTable Items="@suppliers" @ref="table" Dense="true" Hover="true" RowClassFunc="@SelectedRowClassFunc"
+            Filter="new Func<Supplier,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Select Supplier</MudText>
+                <MudSpacer />
+                <MudTextField DebounceInterval="500" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" 
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Id</MudTh>
+                <MudTh>Name</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Id">@context.Id</MudTd>
+                <MudTd DataLabel="Name">@context.Name</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    List<Supplier> suppliers = new List<Supplier>();
+    string filter;
+    string searchString1 = "";
+    Supplier selectedItem1;
+    int selectedRowNumber;
+    MudTable<Supplier> table;
+
+    protected override void OnInitialized()
+    {
+        int total;
+        Global.db.GetSuppliers(suppliers, out total);
+    }
+
+    private bool FilterFunc1(Supplier cli) => FilterFunc(cli, searchString1);
+
+    private bool FilterFunc(Supplier cli, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (cli.Id.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (cli.Name.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SelectedRowClassFunc(Supplier c, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(c))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(selectedItem1));
+    void Cancel() => MudDialog.Cancel();
+}
+

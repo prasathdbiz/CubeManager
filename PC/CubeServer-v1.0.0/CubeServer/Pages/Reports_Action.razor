@@ -1,0 +1,246 @@
+@page "/Reports/{action}/{id:int}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Reports/@action</PageTitle>
+
+@if (errmsg != null)
+{
+    <MudAlert Severity="Severity.Error">@errmsg</MudAlert>
+}
+else
+{
+    @if (errmsg != null)
+    {
+        <MudAlert Severity="Severity.Error">@errmsg</MudAlert>
+    }
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        <MudPaper Class="pa-4" Width="1000px">            
+            <EditForm Model="@report" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Report ID" @bind-Value="report.Id" For="@(() => report.Id)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Project ID" @bind-Value="report.ProjectId" For="@(() => report.ProjectId)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Report Type" @bind-Value="report.ReportType" For="@(() => report.ReportType)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudDatePicker Label="Report Date" Editable="false" @bind-Date="report.ReportDate" For="@(() => report.ReportDate)" Class="me-4"
+                                       DateFormat="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="12">
+                        <MudTextField ReadOnly="true" Label="File Name" @bind-Value="report.FileName" For="@(() => report.FileName)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Email To" @bind-Value="emailTo" For="@(() => emailTo)"
+                                  Lines="3" HelperText="Place each email on a separate line" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Email CC" @bind-Value="emailCC" For="@(() => emailCC)"
+                                      Lines="3" HelperText="Place each email on a separate line" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly Label="Released" @bind-Value="releaseStr" For="@(() => releaseStr)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                         <MudTextField ReadOnly Label="Release User" @bind-Value="report.ReleaseUser" For="@(() => report.ReleaseUser)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                         <MudTextField ReadOnly Label="Release Date" @bind-Value="report.ReleaseDate" For="@(() => report.ReleaseDate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3"></MudItem>
+                
+                @if (Util.CanEdit(user, editRoles))
+                {
+                    @if (report.ReportType == "Daily" && report.Released == 0)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudButton Style="@($"color:{Colors.Shades.Black}; background:{Colors.Purple.Accent2};")"
+                                        Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Email"
+                                        OnClick="@(() => EmailReport())" Class="px-6 mt-4">Email Report</MudButton>
+                        </MudItem>
+                    }
+
+@*                         @if (report.Released == 0)
+                        {
+                            <MudItem xs="12" md="3" Class="mt-4">
+                                <MudButton ButtonType="ButtonType.Button" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="EmailReport">
+                                <span>Release</span>
+                        </MudButton>
+                    </MudItem>
+                    }
+ *@                    <MudItem xs="12" md="4" Class="mt-4">
+                        <ValidationSummary />
+                    </MudItem>
+                }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+    <MudPaper MaxWidth="100%" Height="700px" Class="mt-8">
+        <iframe id="pdfview" src="@pdffile" style="width: 100%;height: 100%;border: none;"></iframe>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Report report = null;
+    bool rdonly;
+    bool update = true;
+    bool newItem = false;
+    string emailTo;
+    string emailCC;
+    string releaseStr;
+    string pdffile = "";
+
+    string errmsg = "Report does not exist.";
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        rdonly = (action == "View");
+
+        if ((action == "New" || action == "Edit") && !Util.CanEdit(user, editRoles))
+        {
+            errmsg = "User not authorized.";
+            return;
+        }
+        try
+        {
+            report = Global.db.GetReport(id);
+            if (report != null)
+            {
+                emailTo = Util.StringListToLines(report.EmailTo);
+                emailCC = Util.StringListToLines(report.EmailCC);
+                releaseStr = Report.ReleaseStr(report.Released);
+
+                errmsg = null;
+            }
+            else
+            {
+                errmsg = "Report does not exist.";
+                dataOk = false;
+            }
+
+            try
+            {
+                Report r = report;
+                string longFilename = string.Format("{0}\\{1}\\{2}", r.ReportType, r.StartDate.ToString("yyyyMMdd"), r.FileName);
+                string src = Path.Combine(Global.reportStoragePath, longFilename);
+                string dest = Path.Combine(Global.reportPath, Guid.NewGuid() + ".pdf");
+                File.Copy(src, dest, true);
+
+                pdffile = Path.Combine("Reports", Path.GetFileName(dest));
+
+                await JS.InvokeVoidAsync("ScrollTo", "ReportView");
+                errmsg = null;
+            }
+            catch (Exception ex)
+            {
+                pdffile = "";
+                errmsg = "Error preparing report.";
+                Global.logger.LogMessageEx("Error", "Error preparing report for viewing: {0}\r\n", ex.Message, ex.StackTrace);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private void OnValidSubmit(EditContext context)
+    {
+
+
+    }
+
+    private async void EmailReport()
+    {
+        bool status;
+
+        bool? result = await DialogService.ShowMessageBox("Email Report",
+            $"Do you want to email {report.ReportType} Report {report.Id} for Project {report.ProjectCode}?",
+            yesText: "Send!", cancelText: "Cancel");
+
+        if (result == null) return;
+        try
+        {
+            // email
+            if (report.ReportType == "Daily")
+            {
+                status = Global.emailer.SendDailyReport(report, user.Identity.Name);
+            }
+            else if (report.ReportType == "Monthly")
+            {
+                status = Global.emailer.SendMonthlyReport(report, user.Identity.Name);
+            }
+            else if (report.ReportType == "Statistical")
+            {
+                status = Global.emailer.SendStatisticalReport(report, user.Identity.Name);
+            }
+            else
+            {
+                return;
+            }
+
+            if (status)
+            {
+                result = await DialogService.ShowMessageBox("Email Report",
+                $"{report.ReportType} Report for Project {report.ProjectCode} sent.");
+            }
+            else
+            {
+                errmsg = $"Error sending {report.ReportType} Report.";
+                Global.logger.LogMessageEx("Error", "Error sending {0} Report.", report.ReportType);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+
+        StateHasChanged();
+    }
+}

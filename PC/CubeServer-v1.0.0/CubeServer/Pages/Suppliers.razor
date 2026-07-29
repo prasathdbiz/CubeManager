@@ -1,0 +1,277 @@
+@page "/Suppliers"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Suppliers</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@NewSupplier">New Supplier</MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </MudItem>
+            <MudSpacer></MudSpacer>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudItem xs="12" md="4" Style="text-align:right">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedSupplier())" Class="px-6">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedSupplier())" Class="ms-4">Delete</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDataGrid @ref="table" Items="@suppliers" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" 
+                 T="Supplier" QuickFilter="@QuickFilter">
+        <Columns>
+            <PropertyColumn Property="x => x.Id" Title="Supplier ID" />
+            <PropertyColumn Property="x => x.Name" Title="Name" />
+            @* @if (Util.CanEdit(user, editRoles))
+            {
+                <TemplateColumn Title="Action">
+                    <CellTemplate>
+                        <MudStack Row>
+                        <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" 
+                            OnClick="@(() => EditSupplier(@context.Item))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                            OnClick="@(() => DeleteSupplier(@context.Item))" />
+                        </MudStack>
+                    </CellTemplate>
+                </TemplateColumn>
+            } *@
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Supplier" PageSizeOptions=@(new int[] {10, 25, 50})  />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+<style>
+    .selected {
+        background-color: #1E88E5 !important;
+    }
+
+        .selected > td {
+            color: white !important;
+        }
+
+            .selected > td .mud-input {
+                color: white !important;
+            }
+</style>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataAvail;
+    MudDataGrid<Supplier> table;
+    List<Supplier> suppliers;
+    Supplier selectedItem;
+    string statusMessage;
+    int totalSuppliers;
+    string searchStr;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+    //protected TablePagination pagination;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        suppliers = new List<Supplier>();
+        try
+        {
+            bool status = Global.db.GetSuppliers(suppliers, out totalSuppliers);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading supplier data from database.";
+                totalSuppliers = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalSuppliers = 0;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void EditSupplier(Supplier s)
+    {
+        navman.NavigateTo($"/Suppliers/Edit/{s.Id}");
+    }
+
+    private void EditSelectedSupplier()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditSupplier(table.SelectedItem);
+        }
+    }
+
+    private void NewSupplier()
+    {
+        navman.NavigateTo("/Suppliers/New");
+    }
+
+    private async void DeleteSupplier(Supplier s)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Supplier",
+            $"Do you really want to delete supplier {s.Id}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteSupplier(s.Id, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted Supplier {s.Id}.");
+                    Dialog.Show<InfoMsgBox>("Delete Supplier", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting Supplier {s.Id}.");
+                    Dialog.Show<InfoMsgBox>("Delete Supplier", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedSupplier()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteSupplier(table.SelectedItem);
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Supplier s, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(s))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Supplier> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Suppliers/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Supplier> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Supplier, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.Id.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Name.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+

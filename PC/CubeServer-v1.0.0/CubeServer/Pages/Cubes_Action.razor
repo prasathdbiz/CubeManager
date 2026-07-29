@@ -1,0 +1,331 @@
+@page "/Cubes/{action}/{ScoNum:int}/{BatchId:int}"
+@page "/Cubes/{action}/{cubeId:long}"
+@page "/Cubes/{action}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Cubes/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">Cube does not exist.</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        @if (project != null)
+        {
+        <MudPaper Class="px-4" Width="100%">
+            <MudText><b>@project.ProjectCode @project.ProjectName</b></MudText>
+        </MudPaper>
+        }
+        <MudPaper Class="pa-4 mt-4" MaxWidth="@Global.contentMaxWidth">            
+            <EditForm Model="@cube" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                @*<ValidationSummary />*@
+                <MudGrid Spacing="0">
+                    @if (update)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Id" @bind-Value="cube.Id" For="@(() => cube.Id)" Class="me-4" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized)" Label="Barcode" @bind-Value="cube.Barcode" For="@(() => cube.Barcode)" Format="D8" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized)" Label="Sample Ref" @bind-Value="cube.SampleRef" For="@(() => cube.SampleRef)" Class="me-4" />
+                    </MudItem>
+                    <MudItem md="3" />
+                    @if (!update)
+                    {
+                        <MudItem md="3" />
+                    }
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="SCO No." @bind-Value="cube.ScoNum" For="@(() => cube.ScoNum)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Batch Id" @bind-Value="cube.BatchId" For="@(() => cube.BatchId)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Concrete Grade" @bind-Value="cube.ConcreteGrade" For="@(() => cube.ConcreteGrade)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Dimension (mm)" @bind-Value="cube.Dimension" For="@(() => cube.Dimension)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle1" Class="mt-4">Measured Dimensions (mm)</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X1" @bind-Value="cube.MeasuredDimX1" For="@(() => cube.MeasuredDimX1)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X2" @bind-Value="cube.MeasuredDimX2" For="@(() => cube.MeasuredDimX2)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X3" @bind-Value="cube.MeasuredDimX3" For="@(() => cube.MeasuredDimX3)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X4" @bind-Value="cube.MeasuredDimX4" For="@(() => cube.MeasuredDimX4)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X5" @bind-Value="cube.MeasuredDimX5" For="@(() => cube.MeasuredDimX5)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="X6" @bind-Value="cube.MeasuredDimX6" For="@(() => cube.MeasuredDimX6)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y1" @bind-Value="cube.MeasuredDimY1" For="@(() => cube.MeasuredDimY1)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y2" @bind-Value="cube.MeasuredDimY2" For="@(() => cube.MeasuredDimY2)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y3" @bind-Value="cube.MeasuredDimY3" For="@(() => cube.MeasuredDimY3)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y4" @bind-Value="cube.MeasuredDimY4" For="@(() => cube.MeasuredDimY4)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y5" @bind-Value="cube.MeasuredDimY5" For="@(() => cube.MeasuredDimY5)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudTextField ReadOnly="true" Label="Y6" @bind-Value="cube.MeasuredDimY6" For="@(() => cube.MeasuredDimY6)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" Class="mt-4"/>
+                    <MudItem xs="12" md="3" >
+                        <MudTextField ReadOnly="true" Label="Avg Dimension (mm)" @bind-Value="cube.AvgDimension" For="@(() => cube.AvgDimension)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized || !update)" Label="Measured Max Force (N)" @bind-Value="cube.MeasuredMaxForce" For="@(() => cube.MeasuredMaxForce)" Format="0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized || !update)" Label="Measured Strength (MPa)" @bind-Value="cube.MeasuredStrength" For="@(() => cube.MeasuredStrength)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Measured Weight (kg)" @bind-Value="cube.MeasuredWeight" For="@(() => cube.MeasuredWeight)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Measured Density (kg/m3)" @bind-Value="cube.MeasuredDensity" For="@(() => cube.MeasuredDensity)" Format="0.0" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Tester ID" @bind-Value="cube.TesterId" For="@(() => cube.TesterId)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized || !update)" Label="Actual Test Date" @bind-Value="cube.ActualTestDate" For="@(() => cube.ActualTestDate)"
+                                      Placeholder="None" Format="yyyy-MM-dd" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        @if (authorized)
+                        {
+                            <MudSelect T="string" @bind-Value="cube.TestResultStr" Label="Test Result" Placeholder="Select Test Result" AnchorOrigin="Origin.BottomCenter">
+                                <MudSelectItem Value="@("Pass")" />
+                                <MudSelectItem Value="@("Fail")" />
+                                @* <MudSelectItem Value="@("Void")" /> *@
+                            </MudSelect>
+                        }
+                        else
+                        {
+                            <MudTextField ReadOnly="true" Label="Test Result" @bind-Value="cube.TestResultStr" For="@(() => cube.TestResultStr)" Placeholder="None" Class="me-4" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@(!authorized)" Label="Status Code" @bind-Value="cube.StatusCode" For="@(() => cube.StatusCode)"
+                                      Placeholder="None" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudCheckBox ReadOnly="true" Label="Uploaded" @bind-Checked="cube.Uploaded" For="@(() => cube.Uploaded)" Class="mt-2"/>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="true" Label="Upload Time" @bind-Value="cube.UploadTime" For="@(() => cube.UploadTime)" 
+                            Placeholder="None" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                    </MudItem>
+                    <MudItem md="3" />
+
+                    @if (@update)
+                    {
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Created" @bind-Value="cube.CreateDate" For="@(() => cube.CreateDate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Create User" @bind-Value="cube.CreateUser" For="@(() => cube.CreateUser)" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="cube.LastUpdate" For="@(() => cube.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update User" @bind-Value="cube.LastUpdateUser" For="@(() => cube.LastUpdateUser)" Class="me-4" />
+                        </MudItem>
+                    }
+
+                    @if (!@rdonly)
+                    {
+                        <MudItem xs="12">
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">
+                                @if (@update)
+                                {
+                                    <span>Update</span>
+                                }
+                                else
+                                {
+                                    <span>Add</span>
+                                }
+                            </MudButton>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem md="1" />
+                        <MudSpacer />
+                        <MudItem xs="12" md="3" Style="text-align:right">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-10" OnClick="EditCube">
+                                Edit
+                            </MudButton>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public long cubeId { get; set; }
+    [Parameter]
+    public int ScoNum { get; set; }
+    [Parameter]
+    public int BatchId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+    string[] measEditRoles = { "Administrator" };
+    bool dataOk;
+    Cube cube = null;
+    bool rdonly;
+    bool update = true;
+    bool authorized = false;
+
+    CubeSet cubeSet;
+    Batch batch;
+    Project project;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        rdonly = (action == "View");
+        authorized = Util.CanEdit(user, measEditRoles) && !rdonly;
+        try
+        {
+            if (action == "New")
+            {
+                cube = new Cube();
+                cube.ScoNum = ScoNum;
+                cube.BatchId = BatchId;
+
+                update = false;
+            }
+            else
+            {
+                cube = Global.db.GetCube(cubeId);
+                if (cube == null) return;
+
+            }
+
+            // grab ancestor data
+            batch = Global.db.GetBatch(cube.ScoNum, cube.BatchId);
+            if (batch != null)
+            {
+                cube.Dimension = batch.Dimension;
+                cubeSet = Global.db.GetCubeSet(batch.CubeSetId);
+                if (cubeSet != null)
+                {
+                    cube.ConcreteGrade = cubeSet.ConcreteGrade;
+                    project = Global.db.GetProject(cubeSet.ProjectId);
+                }
+            }
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        Cube c = (Cube)context.Model;
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateCube(c, user.Identity.Name);
+            }
+            else
+            {
+                success = Global.db.InsertCube(c, user.Identity.Name);
+            }
+
+            if (success)
+            {
+                StateHasChanged();
+
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Cube {c.Barcode} has been updated successfully.");
+                var Dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Cube", par);
+                await Dialog.Result;
+
+                navman.NavigateTo($"Cubes/View/{cube.Barcode}", true);
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Cube {c.Barcode}.");
+                DialogService.Show<InfoMsgBox>("Update Cube", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EditCube()
+    {
+        navman.NavigateTo($"Cubes/Edit/{cube.Barcode}", true);
+    }
+
+    private void Submit()
+    {
+        StateHasChanged();
+        try
+        {
+            Cube c = cube;
+            success = Global.db.InsertCube(c, user.Identity.Name);
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+
+}

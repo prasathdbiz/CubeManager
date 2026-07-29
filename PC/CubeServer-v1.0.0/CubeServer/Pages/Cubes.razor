@@ -1,0 +1,314 @@
+@page "/Cubes"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Cubes</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+        <MudGrid>
+            @* <MudItem xs="12" md="2">
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@NewCube">New Cube</MudButton>
+            } 
+            </MudItem> *@
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" Label="Status" @bind-Value="@viewOption" Dense FullWidth SelectedValuesChanged="@Display">
+                     <MudSelectItem Value="@("Untested")" />
+                     <MudSelectItem Value="@("Tested")" />
+                     <MudSelectItem Value="@("All")" />
+                 </MudSelect>
+             </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" Label="Limit" @bind-Value="@limitStr" Dense FullWidth SelectedValuesChanged="@Display">
+                     <MudSelectItem Value="@("1000")" />
+                     <MudSelectItem Value="@("2000")" />
+                     <MudSelectItem Value="@("5000")" />
+                     <MudSelectItem Value="@("All")" />
+                 </MudSelect>
+             </MudItem>
+             <MudItem xs="12" md="2">
+                 <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                               AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+             </MudItem>
+             <MudSpacer />
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudItem xs="12" md="4" Style="text-align:right">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedCube())" Class="px-6">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedCube())" Class="ms-4">Delete</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDataGrid @ref="table" Items="@cubeList" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                 T="Cube" QuickFilter="@QuickFilter" Dense>
+        <Columns>
+            <PropertyColumn Property="x => x.Barcode" Title="Barcode" Format="D8" />
+            <PropertyColumn Property="x => x.SampleRef" Title="Sample Ref" />
+            <PropertyColumn Property="x => x.BatchNum" Title="Batch ID" />
+            <PropertyColumn Property="x => x.MeasuredWeight" Title="Measured Weight (kg)" Format="0.0" />
+            <PropertyColumn Property="x => x.MeasuredStrength" Title="Measured Strength (MPa)" Format="0.0"/>
+            <PropertyColumn Property="x => x.TesterId" Title="Tester ID" />
+            <PropertyColumn Property="x => Util.TestResultStr(x.TestResult)" Title="Test Result" />
+            <PropertyColumn Property="x => x.StatusCode" Title="Status Code" />
+            <PropertyColumn Property="x => Util.DateOnly(x.ActualTestDate)" Title="Actual Test Date" />
+            <PropertyColumn Property="x => x.UploadTime" Title="Upload Time" Format="yyyy-MM-dd HH:mm:ss" />
+
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Cube" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent>
+    </MudDataGrid>
+    <div class="d-flex flex-wrap mt-4">
+        <MudText>Total cubes: @totalCubes</MudText>
+    </div>
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator" };
+
+    bool dataAvail;
+    MudDataGrid<Cube> table;
+    List<Cube> cubeList;
+    Cube selectedItem;
+    string statusMessage;
+    int totalCubes;
+    string searchStr;
+    string limitStr = "1000";
+    int limit;
+    string viewOption = "Untested";
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+    //protected TablePagination pagination;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private CubeViewOption StringToCubeOption(string s)
+    {
+        foreach(CubeViewOption o in Enum.GetValues(typeof(CubeViewOption)))
+        {
+            if (o.ToString() == s) return o;
+        }
+
+        return CubeViewOption.All;
+    }
+
+    private void Display()
+    {
+        bool status = false;
+        CubeViewOption option = StringToCubeOption(viewOption);
+
+        cubeList = new List<Cube>();
+        try
+        {
+            if (limitStr == "All")
+            {
+                status = Global.db.GetCubes(cubeList, 0, 0, option, out totalCubes);
+            }
+            else
+            {
+                if (int.TryParse(limitStr, out limit))
+                {
+                    status = Global.db.GetCubes(cubeList, 0, 0, option, out totalCubes, 0, limit);
+                }
+            }
+
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading Cube data from database.";
+                totalCubes = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalCubes = 0;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void EditCube(Cube c)
+    {
+        navman.NavigateTo($"/Cubes/Edit/{c.Barcode}");
+    }
+
+    private void EditSelectedCube()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditCube(table.SelectedItem);
+        }
+    }
+
+    private void NewCube()
+    {
+        navman.NavigateTo("/Cubes/New");
+    }
+
+    private async void DeleteCube(Cube c)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Cube",
+            $"Do you really want to delete Cube {c.Barcode}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteCube(c.Barcode, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted Cube {c.Barcode}.");
+                    Dialog.Show<InfoMsgBox>("Delete Cube", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting Cube {c.Barcode}.");
+                    Dialog.Show<InfoMsgBox>("Delete Cube", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedCube()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteCube(table.SelectedItem);
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Cube c, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(c))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Cube> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Cubes/View/{args.Item.Barcode}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Cube, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.BatchId.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Barcode.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TesterId.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SampleRef.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TestResultStr.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+

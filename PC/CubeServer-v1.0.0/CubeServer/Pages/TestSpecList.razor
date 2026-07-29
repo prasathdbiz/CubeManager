@@ -1,0 +1,147 @@
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    <MudPaper Class="d-flex justify-space-between flex-grow-1 gap-4" Elevation="0">
+        <MudText Typo="Typo.h6">Test Specifications</MudText>
+        <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" Class="text-align:right;"
+                    OnClick="@NewTestSpecs">New Test Specs</MudButton>
+    </MudPaper>
+    <MudDataGrid @ref="table" Items="@testSpecs" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                 T="TestSpec" EditMode="DataGridEditMode.Form" EditTrigger="DataGridEditTrigger.OnRowClick"
+                  Dense>
+        <Columns>
+            <PropertyColumn Property="x => x.SpecId" Title="Spec ID" />
+            <PropertyColumn Property="x => x.Description" Title="Description" />
+            <PropertyColumn Property="x => x.TestStandard" Title="Test Standard" />
+            <PropertyColumn Property="x => x.LastUpdateUser" Title="Last Update By" />
+            <PropertyColumn Property="x => x.LastUpdate" Title="Last Update" />
+        </Columns>
+@*         <PagerContent>
+            <MudDataGridPager T="CubeSet" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent> *@
+    </MudDataGrid>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator"};
+
+    MudDataGrid<TestSpec> table;
+    List<TestSpec> testSpecs = new List<TestSpec>();
+    TestSpec selectedItem;
+    private int selectedRowNumber = -1;
+    int totalTestSpeces;
+    bool dataAvail;
+    string statusMessage;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        bool status;
+        try
+        {
+            status = Global.db.GetTestSpecs(testSpecs);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading TestSpec data from database.";
+                totalTestSpeces = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalTestSpeces = 0;
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(TestSpec b, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(b))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<TestSpec> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+
+
+    private async void NewTestSpecs()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<TestSpecDialog>("New Test Spec", options);
+        var result = await dialog.Result;
+
+        Display();
+    }
+}

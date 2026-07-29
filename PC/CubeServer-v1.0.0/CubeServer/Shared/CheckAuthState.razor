@@ -1,0 +1,69 @@
+@inject NavigationManager navMan
+@inject ProtectedSessionStorage sessionStore
+@inject AuthenticationStateProvider auth
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; }
+
+    bool isConnected;
+    Session session;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isConnected = true;
+            await LoadSessionAsync();
+            StateHasChanged();
+        }
+    }
+
+    protected async Task LoadSessionAsync()
+    {
+        bool authenticated;
+
+        if (CustomAuthenticationStateProvider.IsDevelopmentEnvironment())
+        {
+            ((CustomAuthenticationStateProvider)auth).AuthorizeDevelopmentAdmin();
+            return;
+        }
+
+        ProtectedBrowserStorageResult<Session> val = await sessionStore.GetAsync<Session>("session");
+        if (val.Success && val.Value != null)
+        {
+            Session stored = (Session)val.Value;
+            session = Global.db.GetSession(stored.sessionId);
+
+            if (session == null)
+            {
+                navMan.NavigateTo("/login");
+            }
+            else
+            {
+                CustomAuthenticationStateProvider cauth = (CustomAuthenticationStateProvider)auth;
+                cauth.AuthorizeUser((Database)Global.db, session.userId);
+
+            }
+        }
+        else
+        {
+            authenticated = await AuthenticateSSOUser();
+            navMan.NavigateTo("/login");
+                //navMan.NavigateTo("/"); 
+        }
+    }
+
+    private async Task<bool> AuthenticateSSOUser()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        var authUser = authState.User;
+        if (authUser.Identity.IsAuthenticated)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+}

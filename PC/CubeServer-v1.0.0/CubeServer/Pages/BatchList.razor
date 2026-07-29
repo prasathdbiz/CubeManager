@@ -1,0 +1,155 @@
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+    
+    <MudExpansionPanels Class="mt-4">
+        <MudExpansionPanel IsInitiallyExpanded>
+            <TitleContent><MudText Typo="Typo.h6">Batches</MudText></TitleContent>
+            <ChildContent>
+            <MudDataGrid ReadOnly="@rdonly" @ref="table" Items="@batchList" Hover="true" Class="xs-12"
+                    RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                    T="Batch" Dense>
+                <Columns>
+                    <PropertyColumn Property="x => x.BatchNum" Title="Batch ID" />
+                    <PropertyColumn Property="x => x.TestAge" Title="Test Age" />
+                    <PropertyColumn Property="x => x.TargetTestDate" Title="Target Test Date" Format="yyyy-MM-dd" />
+                    <PropertyColumn Property="x => x.Dimension" Title="Dimension (mm)" />
+                 </Columns>
+            </MudDataGrid>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="AddBatch">
+                    Add Batch
+                </MudButton>
+            }
+         </ChildContent>
+     </MudExpansionPanel>
+ </MudExpansionPanels>
+}
+
+@code {
+    [Parameter]
+    public int cubeSetId { get; set; }
+    [Parameter]
+    public bool rdonly { get; set; }
+    [Parameter]
+    public EventCallback Refresh { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry"};
+
+    MudDataGrid<Batch> table;
+    List<Batch> batchList = new List<Batch>();
+    Batch selectedItem;
+    private int selectedRowNumber = -1;
+    int totalBatches;
+    bool dataAvail;
+    string statusMessage;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        bool status;
+        batchList = new List<Batch>();
+        try
+        {
+            status = Global.db.GetBatchesForCubeSet(cubeSetId, batchList);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading Batch data from database.";
+                totalBatches = 0;
+                return;
+            }
+
+            totalBatches = batchList.Count;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalBatches = 0;
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Batch b, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(b))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Batch> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Batches/View/{args.Item.ScoNum}/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    private void AddBatch()
+    {
+        navman.NavigateTo($"/Batches/New/0/{cubeSetId}", true);
+    }
+}

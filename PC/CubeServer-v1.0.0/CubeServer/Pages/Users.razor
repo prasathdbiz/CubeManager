@@ -1,0 +1,274 @@
+@page "/Users"
+@attribute [Authorize(Roles = "Administrator")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Users</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@NewUser">New User</MudButton>
+            </MudItem>
+            <MudSpacer />
+            <MudItem xs="12" md="2">
+                <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </MudItem>
+            <MudSpacer></MudSpacer>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudItem xs="12" md="4" Style="text-align:right">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedUser())" Class="px-6">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedUser())" Class="ms-4">Delete</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDataGrid @ref="table" Items="@users" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" 
+                 T="User" QuickFilter="@QuickFilter">
+        <Columns>
+            <PropertyColumn Property="x => x.userId" Title="User ID" />
+            <PropertyColumn Property="x => x.userName" Title="Name" />
+            <PropertyColumn Property="x => x.windowsId" Title="Windows ID" />
+            <PropertyColumn Property="x => Util.SplitCamelCase(x.UserPrivilegeStr())" Title="Privilege" />
+            <PropertyColumn Property="x => Util.ToYesNo(x.enabled)" Title="Enabled" />
+            <PropertyColumn Property="x => x.mobile" Title="Mobile" />
+            <PropertyColumn Property="x => x.email" Title="Email" />
+            <PropertyColumn Property="x => x.lastUpdate" Title="Last Update" Format="yyyy-MM-dd HH:mm:ss" />
+            @* @if (Util.CanEdit(user, editRoles))
+            {
+                <TemplateColumn Title="Action">
+                    <CellTemplate>
+                        <MudStack Row>
+                         <MudIconButton Icon="@Icons.Material.Filled.Edit" Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                        OnClick="@(() => EditUser(@context.Item))" />
+                         <MudIconButton Icon="@Icons.Material.Filled.Delete" Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small"
+                                        OnClick="@(() => DeleteUser(@context.Item))" />
+                     </MudStack>
+                 </CellTemplate>
+             </TemplateColumn>
+            } *@
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="User" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator"};
+
+    bool dataAvail;
+    MudDataGrid<User> table;
+    List<User> users;
+    User selectedItem;
+    string statusMessage;
+    int totalUsers;
+    string searchStr;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    IList<IBrowserFile> files = new List<IBrowserFile>();
+    //protected TablePagination pagination;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        users = new List<User>();
+        try
+        {
+            bool status = Global.db.GetUsers(users);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading user data from database.";
+                totalUsers = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalUsers = 0;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void EditUser(User user)
+    {
+        navman.NavigateTo($"/Users/Edit/{user.userId}");
+    }
+
+    private void EditSelectedUser()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditUser(table.SelectedItem);
+        }
+    }
+
+    private void NewUser()
+    {
+        navman.NavigateTo("/Users/New");
+    }
+
+    private async void DeleteUser(User user)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete User",
+            $"Do you really want to delete user {user.userId}: {user.userName}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteUser(user.userId, this.user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted User {user.userId}.");
+                    Dialog.Show<InfoMsgBox>("Delete User", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting User {user.userId}.");
+                    Dialog.Show<InfoMsgBox>("Delete User", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedUser()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteUser(table.SelectedItem);
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(User u, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(u))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<User> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Users/View/{args.Item.userId}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Supplier> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<User, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.userId.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.userName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.userPrivilegeStr.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+
+

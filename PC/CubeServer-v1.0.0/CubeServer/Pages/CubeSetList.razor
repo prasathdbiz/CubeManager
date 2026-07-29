@@ -1,0 +1,154 @@
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+    
+    <MudExpansionPanels Class="mt-4">
+        <MudExpansionPanel IsInitiallyExpanded>
+            <TitleContent><MudText Typo="Typo.h6">Cube Sets</MudText></TitleContent>
+            <ChildContent>
+            <MudDataGrid ReadOnly="@rdonly" @ref="table" Items="@csList" Hover="true" Class="xs-12"
+                    RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                    T="CubeSet" Dense>
+                <Columns>
+                    <PropertyColumn Property="x => x.Id" Title="ID" />
+                    <PropertyColumn Property="x => x.ProjectCode" Title="Project ID" />
+                    <PropertyColumn Property="x => x.CastingDate" Title="Casting Date" Format="yyyy-MM-dd" />
+                    <PropertyColumn Property="x => x.SupplierId" Title="Supplier ID" />
+                    <PropertyColumn Property="x => x.ConcreteGrade" Title="Concrete Grade" />
+                </Columns>
+            </MudDataGrid>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="AddCubeSet">
+                    Add CubeSet
+                </MudButton>
+            }
+         </ChildContent>
+     </MudExpansionPanel>
+ </MudExpansionPanels>
+}
+
+@code {
+    [Parameter]
+    public int projectId { get; set; }
+    [Parameter]
+    public bool rdonly { get; set; }
+    [Parameter]
+    public EventCallback Refresh { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    MudDataGrid<CubeSet> table;
+    List<CubeSet> csList = new List<CubeSet>();
+    CubeSet selectedItem;
+    private int selectedRowNumber = -1;
+    int totalCubeSets;
+    bool dataAvail;
+    string statusMessage;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        bool status;
+        csList = new List<CubeSet>();
+        try
+        {
+            status = Global.db.GetCubeSetsForProject(projectId, csList, out totalCubeSets);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading cubeset data from database.";
+                totalCubeSets = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalCubeSets = 0;
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(CubeSet b, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(b))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<CubeSet> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/CubeSets/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    private void AddCubeSet()
+    {
+        navman.NavigateTo($"/CubeSets/New/{projectId}");
+    }
+}

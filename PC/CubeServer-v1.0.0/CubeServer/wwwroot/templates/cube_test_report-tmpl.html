@@ -1,0 +1,109 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="cube_test_report.css" rel="stylesheet">
+    <title>Cube Test Report</title>
+    <meta name="description" content="Cube Test Report">
+</head>
+
+<header>
+    <div id="title">TEST REPORT: COMPRESSION TEST ON CONCRETE CUBES</div>
+    <table id="top_header">
+        <tr>
+            <td>
+                <table id="left_header">
+                    <tr>
+                        <td>PROJECT ID:</td>
+                        <td>{{projectID}}</td>
+                    </tr>
+                    <tr>
+                        <td>PROJECT:</td>
+                        <td>{{projectName}}</td>
+                    </tr>
+                    <tr>
+                        <td>COMPANY:</td>
+                        <td>{{companyName}}</td>
+                    </tr>
+                    <tr>
+                        <td>ADDRESS:</td>
+                        <td>{{companyAddress}}</td>
+                    </tr>
+                    <tr>
+                        <td>ATTENTION:</td>
+                        <td>{{attnTo}}</td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table id="right_header">
+                    <tr>
+                        <td>
+                            <img src="tuvsud_logo.png" id="logo" />
+                        </td>
+                        <td>
+                            <b>TÜV SÜD PSB Pte. Ltd.</b><br />
+                            60 Tuas South Street 1<br />
+                            Singapore 639925<br />
+                            Business Reg No. 199002667R<br />
+                            <br />
+                            Tel: 6240 0217<br />
+                            Fax: 6240 0201
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <div style="padding-top:10px"></div>
+
+</header>
+
+<body>
+    
+    <table id="center_header">
+        <tr>
+            <td>Test Date: {{testDate}}</td>
+            <td>Supplier: {{supplier}}</td>
+            <td>Specification: {{specification}}</td>
+            <td>Testing Standard: {{testStandard}}</td>
+        </tr>
+    </table>
+    <table width="100%" class="cubetable">
+        <tr>
+            <th>Set</th>
+            <th>Batch</th>
+            <th>Date Cast</th>
+            <th>Age At Test</th>
+            <th>Grade</th>
+            <th>Average Strength (N/mm2)</th>
+            <th>Sample Ref</th>
+            <th>Cube Dimension (mm)</th>
+            <th>Compressive Strength At Failure (N/mm2)</th>
+            <th>Mode of Failure</th>
+        </tr>
+        {{ i = 0 }}
+        {{ for ct in cubeTests }}
+        {{ if i= 0 }}
+        <tr>
+            <td rowspan="{{ ct.cubes.size }}">{{ ++i }}</td>
+            <td>{{ ct.batch.batch_num }}</td>
+            <td>{{ ct.batch.casting_date }}</td>
+            <td>{{ ct.batch.test_age }}</td>
+            <td>{{ }}</td>
+        </tr>
+        {{ else }}
+            <td rowspan="{{ ct.cubes.size }}">{{ ++i }}</td>
+            <td>{{ ct.batch.batch_num }}</td>
+            <td>{{ ct.batch.casting_date }}</td>
+            <td>{{ ct.batch.test_age }}</td>
+            <td>{{ }}</td>
+            </tr>
+        {{ end }}
+    </table>
+</body>
+<footer>
+    <div id="accreditation">
+        <img src="accreditation.png" id="accred_img" />
+    </div>
+</footer>
+</html>

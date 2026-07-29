@@ -1,0 +1,104 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudTable Items="@projects" @ref="table" Dense="true" Hover="true" RowClassFunc="@SelectedRowClassFunc"
+            Filter="new Func<Project,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Select Project</MudText>
+                <MudSpacer />
+                <MudTextField DebounceInterval="500" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" 
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Project ID</MudTh>
+                <MudTh>Project Name</MudTh>
+                <MudTh>Company Name</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ProjectID">@context.ProjectCode</MudTd>
+                <MudTd DataLabel="ProjectName">@context.ProjectName</MudTd>
+                <MudTd DataLabel="SoldToCompany">@context.SoldToCompany</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+    @code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+    [Parameter] public string reportType { get; set; }
+    [Parameter] public DateTime? date1 { get; set; }
+    [Parameter] public DateTime? date2 { get; set; }
+
+
+    List<Project> projects = new List<Project>();
+    string filter;
+    string searchString1 = "";
+    Project selectedItem1;
+    int selectedRowNumber;
+    MudTable<Project> table;
+
+    protected override void OnInitialized()
+    {
+        int total;
+
+        MudDialog.Options.MaxWidth = MaxWidth.Medium;
+        MudDialog.SetOptions(MudDialog.Options);
+
+        if (reportType == null)
+        {
+            Global.db.GetProjects(projects, out total);
+        }
+        else if (reportType == "Daily" && date1.HasValue)
+        {
+            Global.db.GetProjectsWithTestedCubes((DateTime)date1, (DateTime)date1, projects);
+        }
+        else if ((reportType == "Monthly" || reportType == "Statistical") && 
+                 date1.HasValue && date2.HasValue)
+        {
+            Global.db.GetProjectsWithTestedCubes((DateTime)date1, (DateTime)date2, projects);
+        }
+    }
+
+    private bool FilterFunc1(Project quo) => FilterFunc(quo, searchString1);
+
+    private bool FilterFunc(Project quo, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (quo.ProjectCode.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (quo.ProjectName.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (quo.SoldToCompany.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SelectedRowClassFunc(Project q, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(q))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(selectedItem1));
+    void Cancel() => MudDialog.Cancel();
+}
+

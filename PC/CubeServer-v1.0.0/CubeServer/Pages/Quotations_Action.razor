@@ -1,0 +1,385 @@
+@page "/Quotations/New"
+@page "/Quotations/{action}/{quoNum:int}"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Quotations/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">@errMsg</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        <MudPaper Class="pa-4" MaxWidth="@Global.contentMaxWidth">
+            <EditForm Model="@quo" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary />
+                <MudGrid Spacing="0">
+                    <MudItem xs="12" >
+                        <MudTextField ReadOnly="@(!isNewMode)" Label="Quotation No." @bind-Value="quo.QuoNum" For="@(() => quo.QuoNum)" Class="me-4"/>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Bill-To-Party" @bind-Value="quo.BillToParty" 
+                            For="@(() => quo.BillToParty)" Lines="5" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Sold-To-Party" @bind-Value="quo.SoldToParty"
+                                      For="@(() => quo.SoldToParty)" Lines="5" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Date" @bind-Value="quo.QuoDate" For="@(() => quo.QuoDate)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Customer No." @bind-Value="quo.CustomerNum" For="@(() => quo.CustomerNum)" Class="me-4" />
+                    </MudItem>
+                <MudItem xs="12">
+                    <MudText Class="mt-5">Attention To</MudText>
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField ReadOnly="@rdonly" Label="Name" @bind-Value="quo.AttnName" For="@(() => quo.AttnName)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField ReadOnly="@rdonly" Label="Tel" @bind-Value="quo.AttnTel" For="@(() => quo.AttnTel)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField ReadOnly="@rdonly" Label="Mobile" @bind-Value="quo.AttnMobile" For="@(() => quo.AttnMobile)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField ReadOnly="@rdonly" Label="Fax" @bind-Value="quo.AttnFax" For="@(() => quo.AttnFax)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="4">
+                    <MudTextField ReadOnly="@rdonly" Label="Email" @bind-Value="quo.AttnEmail" For="@(() => quo.AttnEmail)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField ReadOnly="@rdonly" Label="Subject" @bind-Value="quo.QuoSubject"
+                        For="@(() => quo.QuoSubject)" Lines="5" Class="me-4" />
+                </MudItem>
+                    <MudItem xs="12" md="3">
+                    <MudTextField ReadOnly="@rdonly" Label="Currency" @bind-Value="quo.Currency" For="@(() => quo.Currency)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                     <MudTextField ReadOnly="@rdonly" Label="Price / Cube" @bind-Value="quo.Price" For="@(() => quo.Price)" Format="C" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudTextField ReadOnly="@rdonly" Label="Payment Terms" @bind-Value="quo.PaymentTerms" For="@(() => quo.PaymentTerms)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="12" md="3">
+                    <MudCheckBox ReadOnly="@rdonly" Label="Confirmed" @bind-Checked="quo.Confirmed" For="@(() => quo.Confirmed)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                         <MudTextField ReadOnly Label="Uploaded" @bind-Value="quo.Uploaded" For="@(() => quo.Uploaded)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                        <MudTextField ReadOnly Label="Upload User" @bind-Value="quo.UploadUser" For="@(() => quo.UploadUser)" Class="me-4" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                        <MudTextField ReadOnly Label="Last Update" @bind-Value="quo.LastUpdate" For="@(() => quo.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                </MudItem>
+                <MudItem xs="6" md="3">
+                    <MudTextField ReadOnly Label="Last Update User" @bind-Value="quo.LastUpdateUser" For="@(() => quo.LastUpdateUser)" Class="me-4" />
+                </MudItem>
+
+                @if (!rdonly)
+                {
+                    <MudItem xs="12">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-8">@submitButtonText</MudButton>
+                    </MudItem>
+                }
+                else if (Util.CanEdit(user, editRoles)) // readonly
+                {
+                    if (quo.Confirmed && !quotationHasProject)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">Create Project</MudButton>
+                        </MudItem>
+                    }
+                    <MudItem xs="12" md="1" />
+                    <MudSpacer />
+                    <MudItem xs="12" md="2" Style="text-align:right">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-10" OnClick="EditQuotation">Edit</MudButton>
+                    </MudItem>
+                }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public int quoNum { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Quotation quo = new Quotation();
+    MudForm form;
+    bool rdonly;
+    bool isNewMode;
+    bool quotationHasProject;
+    string submitButtonText = "Update";
+
+    string errMsg;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+        if (string.IsNullOrWhiteSpace(action))
+        {
+            action = "New";
+        }
+
+        isNewMode = string.Equals(action, "New", StringComparison.OrdinalIgnoreCase);
+        rdonly = !string.Equals(action, "Edit", StringComparison.OrdinalIgnoreCase) && !isNewMode;
+        submitButtonText = isNewMode ? "Save" : "Update";
+
+        #region debug-point QD-A
+        Global.DebugReport("pre-fix", "A", "Quotations_Action.razor:140", "Quotation detail init start", new { action, quoNum, user = user?.Identity?.Name, isAuth = user?.Identity?.IsAuthenticated, rdonly });
+        #endregion
+
+        if ((string.Equals(action, "Edit", StringComparison.OrdinalIgnoreCase) || isNewMode) && !Util.CanEdit(user, editRoles))
+        {
+            #region debug-point QD-A
+            Global.DebugReport("pre-fix", "A", "Quotations_Action.razor:144", "Rejected by edit authorization", new { action, quoNum, user = user?.Identity?.Name });
+            #endregion
+            errMsg = "User is not authorized.";
+            return;
+        }
+        else if (isNewMode)
+        {
+            try
+            {
+                InitializeNewQuotation();
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errMsg != null)
+                {
+                    errMsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errMsg = ex.Message;
+                }
+                return;
+            }
+            dataOk = true;
+            StateHasChanged();
+            return;
+        }
+        else if (quoNum <= 0)
+        {
+            #region debug-point QD-A
+            Global.DebugReport("pre-fix", "A", "Quotations_Action.razor:149", "Rejected invalid quotation number", new { action, quoNum });
+            #endregion
+            errMsg = "Quotation does not exist.";
+            return;
+        }
+        else
+        {
+            try
+            {
+                #region debug-point QD-B
+                Global.DebugReport("pre-fix", "B", "Quotations_Action.razor:154", "About to fetch quotation detail", new { quoNum });
+                #endregion
+                quo = Global.db.GetQuotation(quoNum);
+                #region debug-point QD-B
+                Global.DebugReport("pre-fix", "B", "Quotations_Action.razor:156", "Quotation detail fetch completed", new { quoNum, found = quo != null });
+                #endregion
+                if (quo == null) return;
+
+                #region debug-point QD-C
+                Global.DebugReport("pre-fix", "C", "Quotations_Action.razor:159", "About to count projects for quotation", new { quoNum });
+                #endregion
+                quotationHasProject = Global.db.CountProjectsWithQuotation(quoNum);
+                #region debug-point QD-C
+                Global.DebugReport("pre-fix", "C", "Quotations_Action.razor:161", "Counted projects for quotation", new { quoNum, quotationHasProject });
+                #endregion
+
+                dataOk = true;
+                #region debug-point QD-D
+                Global.DebugReport("pre-fix", "D", "Quotations_Action.razor:165", "Quotation detail init success", new { quoNum, action, dataOk });
+                #endregion
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errMsg != null)
+                {
+                    errMsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errMsg = ex.Message;
+                }
+            }
+        }
+    }
+
+    private async void GotoPreviousPage()
+    {
+        await JS.InvokeVoidAsync("historyGo", -1);
+    }
+
+    private void EditQuotation()
+    {
+        navman.NavigateTo($"/Quotations/Edit/{quo.QuoNum}", true);
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        if (rdonly) 
+        {   // create new project from quotation
+            navman.NavigateTo($"/Projects/New/{quo.QuoNum}");
+        }
+        else if (isNewMode)
+        {
+            Quotation q = (Quotation)context.Model;
+            try
+            {
+                if (Global.db.HasQuotation(q.QuoNum))
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Quotation {q.QuoNum} already exists.");
+                    await DialogService.ShowAsync<InfoMsgBox>("Save Quotation", par);
+                    return;
+                }
+
+                q.UploadUser = user.Identity?.Name ?? Global.userName;
+                q.Uploaded = DateTime.Now;
+                q.LastUpdateUser = user.Identity?.Name ?? Global.userName;
+                q.LastUpdate = DateTime.Now;
+                q.Filename ??= "Manual Entry";
+
+                success = Global.db.InsertQuotation(q, user.Identity.Name);
+                if (success)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Quotation {q.QuoNum} has been created successfully.");
+                    var dialog = await DialogService.ShowAsync<InfoMsgBox>("Save Quotation", par);
+                    await dialog.Result;
+
+                    navman.NavigateTo($"/Quotations/View/{q.QuoNum}", true);
+                    StateHasChanged();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error saving Quotation {q.QuoNum}.");
+                    await DialogService.ShowAsync<InfoMsgBox>("Save Quotation", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errMsg != null)
+                {
+                    errMsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errMsg = ex.Message;
+                }
+            }
+        }
+        else // update
+        {
+            Quotation q = (Quotation)context.Model;
+            try
+            {
+                success = Global.db.UpdateQuotation(q, user.Identity.Name);
+
+                if (success)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Quotation {q.QuoNum} has been updated successfully.");
+                    var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Quotation", par);
+                    await dialog.Result;
+
+                    navman.NavigateTo($"/Quotations/View/{quo.QuoNum}", true);
+
+                    StateHasChanged();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error updating Quotation {q.QuoNum}.");
+                    await DialogService.ShowAsync<InfoMsgBox>("Update Quotation", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errMsg != null)
+                {
+                    errMsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errMsg = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void InitializeNewQuotation()
+    {
+        List<Quotation> existing = new List<Quotation>();
+        int total;
+        try
+        {
+            Global.db.GetQuotations(existing, "All", out total);
+            int nextQuoNum = existing.Count == 0 ? 1 : existing.Max(x => x.QuoNum) + 1;
+
+            quo = new Quotation
+            {
+                QuoNum = nextQuoNum,
+                QuoDate = DateTime.Today,
+                Currency = "SGD",
+                Uploaded = DateTime.Now,
+                UploadUser = user.Identity?.Name ?? Global.userName,
+                LastUpdate = DateTime.Now,
+                LastUpdateUser = user.Identity?.Name ?? Global.userName,
+                PaymentTerms = "",
+                BillToParty = "",
+                SoldToParty = "",
+                AttnName = "",
+                AttnTel = "",
+                AttnMobile = "",
+                AttnFax = "",
+                AttnEmail = "",
+                QuoSubject = "",
+                Filename = "Manual Entry"
+            };
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsg != null)
+            {
+                errMsg += "; " + ex.Message;
+            }
+            else
+            {
+                errMsg = ex.Message;
+            }
+        }
+    }
+}

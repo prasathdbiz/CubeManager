@@ -1,0 +1,290 @@
+@page "/Batches"
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Cubes</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    @if (Util.CanEdit(user, editRoles))
+    {
+        <MudGrid>
+            <MudItem xs="12" md="3">
+                <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Filled" Color="Color.Primary" OnClick="@NewBatch">New Batch</MudButton>
+            </MudItem>
+            <MudItem xs="12" md="2">
+                <MudSelect T="string" Label="Limit" @bind-Value="@limitStr" Dense FullWidth SelectedValuesChanged="@Display">
+                     <MudSelectItem Value="@("1000")" />
+                     <MudSelectItem Value="@("2000")" />
+                     <MudSelectItem Value="@("5000")" />
+                     <MudSelectItem Value="@("All")" />
+                 </MudSelect>
+             </MudItem>
+             <MudItem md="1" />
+             <MudItem xs="12" md="2">
+                 <MudTextField @bind-Value="searchStr" Placeholder="Search" Adornment="Adornment.Start" Immediate="true"
+                               AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+             </MudItem>
+             <MudSpacer />
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudItem xs="12" md="4" Style="text-align:right">
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Edit"
+                               OnClick="@(() => EditSelectedCube())" Class="px-6">Edit</MudButton>
+                    <MudButton Color="Color.Secondary" Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Delete"
+                               OnClick="@(() => DeleteSelectedCube())" Class="ms-4">Delete</MudButton>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDataGrid @ref="table" Items="@batchList" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                 T="Batch" QuickFilter="@QuickFilter">
+        <Columns>
+            <PropertyColumn Property="x => x.BatchNum" Title="Batch ID" />
+            <PropertyColumn Property="x => x.CubeSetId" Title="CubeSet Id" />
+            <PropertyColumn Property="x => x.TestAge" Title="Test Age" />
+            <PropertyColumn Property="x => x.TargetTestDate" Title="Target Test Date" Format="yyyy-MM-dd" />
+            <PropertyColumn Property="x => x.Dimension" Title="Dimension (mm)"/>
+            <PropertyColumn Property="x => x.WitnessNum" Title="Witness No." />
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Batch" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent>
+    </MudDataGrid>
+}
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry"};
+
+    bool dataAvail;
+    MudDataGrid<Batch> table;
+    List<Batch> batchList;
+    Batch selectedItem;
+    string statusMessage;
+    int totalBatches;
+    string searchStr;
+    string limitStr = "1000";
+    int limit;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        bool status = false;
+
+        batchList = new List<Batch>();
+        try
+        {
+            if (limitStr == "All")
+            {
+                status = Global.db.GetBatches(batchList, out totalBatches);
+            }
+            else
+            {
+                if (int.TryParse(limitStr, out limit))
+                {
+                    status = Global.db.GetBatches(batchList, out totalBatches, 0, limit);
+                }
+            }
+
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading Batch data from database.";
+                totalBatches = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalBatches = 0;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void EditCube(Batch b)
+    {
+        navman.NavigateTo($"/Batches/Edit/{b.ScoNum}/{b.Id}");
+    }
+
+    private void EditSelectedCube()
+    {
+        if (table.SelectedItem != null)
+        {
+            EditCube(table.SelectedItem);
+        }
+    }
+
+    private void NewBatch()
+    {
+        navman.NavigateTo("/Batches/New");
+    }
+
+    private async void DeleteBatch(Batch b)
+    {
+        bool? result = await DialogService.ShowMessageBox("Delete Batch",
+            $"Do you really want to delete Batch {b.Id}? This process cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                bool status = Global.db.DeleteBatch(b.BatchNum, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Deleted Batch {b.Id}.");
+                    Dialog.Show<InfoMsgBox>("Delete Batch", par);
+
+                    Display();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error deleting Batch {b.Id}.");
+                    Dialog.Show<InfoMsgBox>("Delete Batch", par);
+                }
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void DeleteSelectedCube()
+    {
+        if (table.SelectedItem != null)
+        {
+            DeleteBatch(table.SelectedItem);
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(Batch b, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(b))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Batch> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Batches/View/{args.Item.ScoNum}/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Batch, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.BatchNum.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.CubeSetId.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.CastingDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TestAge.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TargetTestDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Dimension.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.WitnessNum.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}
+

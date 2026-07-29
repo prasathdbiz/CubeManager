@@ -1,0 +1,433 @@
+@page "/CubeSets/{action}/{CubeSetId:int}"
+@page "/CubeSets/{action}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>CubeSets/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">@errmsg</MudAlert>
+}
+else
+{
+    <MudPaper Class="justify-content-center" MaxWidth="100%" Elevation="0">
+        <MudContainer MaxWidth="MaxWidth.Medium">
+        @if (project != null)
+        {
+        <MudPaper Class="px-4" Width="100%">
+            <MudText><b>@project.ProjectCode @project.ProjectName</b></MudText>
+        </MudPaper>
+        }
+        <MudPaper Class="pa-4 mt-4" Width="100%">            
+            <EditForm Model="@cs" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    @if (update)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="CubeSet ID" @bind-Value="cs.Id" For="@(() => cs.Id)" Class="me-4" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" md="3">
+                        @if (rdonly)
+                        {
+                            <MudTextField ReadOnly="true" Label="Project ID" @bind-Value="cs.ProjectCode" For="@(() => cs.ProjectCode)" Class="me-4" />
+                        }
+                        else
+                        {
+                            <MudTextField ReadOnly="true" Label="Project ID" @bind-Value="cs.ProjectCode" For="@(() => cs.ProjectCode)"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectProject" Class="me-4" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        @if (rdonly)
+                        {
+                            <MudTextField ReadOnly="true" Label="Supplier ID" @bind-Value="cs.SupplierId" For="@(() => cs.SupplierId)" Class="me-4" />
+                        }
+                        else
+                        {
+                            <MudTextField ReadOnly="true" Label="Supplier ID" @bind-Value="cs.SupplierId" For="@(() => cs.SupplierId)"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectSupplier" Class="me-4" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="9">
+                            <MudTextField ReadOnly="@rdonly" Label="Location" @bind-Value="cs.Location" For="@(() => cs.Location)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudDatePicker Label="Casting Date" Editable="@(!rdonly)" @bind-Date="cs.CastingDate" For="@(() => cs.CastingDate)" Class="me-4"
+                                        DateFormat="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect ReadOnly="@rdonly" Label="Spec ID" @bind-Value="cs.SpecId" For="@(() => cs.SpecId)" Class="me-4">
+                            @for (int i = 0; i < specList.Count; i++)
+                            {
+                                <MudSelectItem Value="@( specList[i].SpecId )"></MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect ReadOnly="@rdonly" Label="Test Criteria" @bind-Value="cs.TestCriteria" For="@(() => cs.TestCriteria)" Class="me-4">
+                            @for (int i = 0; i < testCriteria.Count; i++)
+                            {
+                                <MudSelectItem Value="@( testCriteria[i] )"></MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                            <MudSelect T="int" ReadOnly="@rdonly" Label="Concrete Grade" Value="cs.ConcreteGrade" For="@(() => cs.ConcreteGrade)" ValueChanged="SelectConcreteGrade" Class="me-4">
+                            @for (int i=0; i<concreteGrades.Count; i++)
+                            {
+                                <MudSelectItem Value="@( concreteGrades[i] )"></MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect ReadOnly="@rdonly" Label="Concrete Type" @bind-Value="cs.ConcreteType" For="@(() => cs.ConcreteType)" Class="me-4">
+                            @for (int i = 0; i < concreteTypes.Count; i++)
+                            {
+                                <MudSelectItem Value="@( concreteTypes[i] )"></MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@rdonly" Label="Characteristic Strength (MPa)" @bind-Value="cs.CharacteristicStrength" For="@(() => cs.CharacteristicStrength)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@rdonly" Label="Standard Deviation" @bind-Value="cs.StdDeviation" For="@(() => cs.StdDeviation)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6"></MudItem>
+                    @if (@update)
+                    {
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Created" @bind-Value="cs.CreateDate" For="@(() => cs.CreateDate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Create User" @bind-Value="cs.CreateUser" For="@(() => cs.CreateUser)"  Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="cs.LastUpdate" For="@(() => cs.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update User" @bind-Value="cs.LastUpdateUser" For="@(() => cs.LastUpdateUser)" Class="me-4" />
+                        </MudItem>
+                    }
+
+                @if (Util.CanEdit(user, editRoles))
+                {
+                @if (!@rdonly)
+                {
+                    <MudItem xs="12" md="3">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">
+                            @if (@update)
+                            {
+                                <span>Update</span>
+                            }
+                            else
+                            {
+                                <span>Add</span>
+                            }
+                        </MudButton>
+                    </MudItem>
+                    <MudItem xs="12" md="4" Class="mt-4">
+                        <ValidationSummary />
+                    </MudItem>
+
+                }
+                else // readonly
+                {
+                    @* <MudItem xs="12" md="3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="NewBatch">
+                            New Batch
+                        </MudButton>
+                    </MudItem> *@
+                    <MudItem md="1" />
+                    <MudSpacer />
+                    <MudItem xs="12" md="3" Style="text-align:right">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-10" OnClick="EditCubeSet">
+                            Edit
+                        </MudButton>
+                    </MudItem>
+                }
+                }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+
+        @if (update)
+        {
+        <MudPaper Elevation="0" Class="mt-6" Width="100%">
+            <BatchList cubeSetId="@CubeSetId" rdonly="@rdonly"/>
+        </MudPaper>
+        }
+        </MudContainer>
+    </MudPaper>
+
+}
+
+@code {
+    [Parameter]
+    public int CubeSetId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    CubeSet cs = null;
+    bool rdonly;
+    bool update = true;
+    bool newItem = false;
+    List<int> concreteGrades;
+    List<TestSpec> specList;
+    List<string> testCriteria;
+    List<string> concreteTypes;
+    Project project;
+
+    string errmsg = "CubeSet does not exist";
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+        try
+        {
+            // update concrete grades
+            concreteGrades = new List<int>();
+            bool status = Global.db.GetConcreteGrades(concreteGrades);
+            if (!status)
+            {
+                errmsg = "Error getting concrete grades from DB.";
+                return;
+            }
+
+            specList = new List<TestSpec>();
+            status = Global.db.GetTestSpecs(specList);
+            if (!status)
+            {
+                errmsg = "Error getting specifications from DB.";
+                return;
+            }
+
+            testCriteria = new List<string>();
+            status = Global.db.GetTestCriteria(testCriteria);
+            if (!status)
+            {
+                errmsg = "Error getting test criteria from DB.";
+                return;
+            }
+
+            concreteTypes = new List<string>();
+            status = Global.db.GetConcreteTypes(concreteTypes);
+            if (!status)
+            {
+                errmsg = "Error getting concrete types from DB.";
+                return;
+            }
+
+            rdonly = (action == "View");
+
+            if ((action == "New" || action == "Edit") && !Util.CanEdit(user, editRoles))
+            {
+                errmsg = "User not authorized.";
+                return;
+            }
+
+            if (action == "New")
+            {
+                cs = new CubeSet();
+                cs.SpecId = "S206";
+
+                update = false;
+                newItem = true;
+                cs.ProjectId = CubeSetId; // which is really the project id
+                cs.ProjectCode = Global.db.GetProjectCode(cs.ProjectId);
+
+                project = Global.db.GetProject(cs.ProjectId);
+            }
+            else
+            {
+                cs = Global.db.GetCubeSet(CubeSetId);
+                if (cs == null) return;
+
+                cs.ProjectCode = Global.db.GetProjectCode(cs.ProjectId);
+
+                project = Global.db.GetProject(cs.ProjectId);
+            }
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        string paymentCode;
+        CubeSet c = (CubeSet)context.Model;
+        (paymentCode, c.ProjectId) = Project.SplitProjectCode(c.ProjectCode);
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateCubeSet(c, user.Identity.Name);
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"CubeSet {c.Id} has been updated successfully.");
+                    var res = await DialogService.ShowAsync<InfoMsgBox>("Update CubeSet", par);
+                    await res.Result;
+
+                    navman.NavigateTo($"/CubeSets/View/{c.Id}", true);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error updating CubeSet {c.Id}.");
+                    DialogService.Show<InfoMsgBox>("Update CubeSet", par);
+                }
+            }
+            else // add
+            {
+                success = Global.db.InsertCubeSet(c, user.Identity.Name);
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"CubeSet {c.Id} has been added successfully.");
+                    var res = await DialogService.ShowAsync<InfoMsgBox>("Add CubeSet", par);
+                    await res.Result;
+
+                    navman.NavigateTo($"/CubeSets/View/{c.Id}", true);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error adding CubeSet.");
+                    DialogService.Show<InfoMsgBox>("Add CubeSet", par);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+    }
+
+    private void Submit()
+    {
+        StateHasChanged();
+
+        CubeSet c = cs;
+        success = Global.db.InsertCubeSet(c, user.Identity.Name);
+    }
+
+    private async void SelectProject()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<ProjectSelect>("Select Project", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            Project p = (Project)result.Data;
+            cs.ProjectCode = p.ProjectCode;
+
+            StateHasChanged();
+        }
+    }
+
+    private async void SelectSupplier()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<SupplierSelect>("Select Supplier", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            Supplier s = (Supplier)result.Data;
+            cs.SupplierId = s.Id;
+
+            StateHasChanged();
+        }
+    }
+
+    private void SelectConcreteGrade(int concreteGrade)
+    {
+        cs.ConcreteGrade = concreteGrade;
+
+        if (cs.CharacteristicStrength == 0)
+        {
+            cs.CharacteristicStrength = concreteGrade;
+            try
+            {
+                int total;
+                List<CubeSet> cubeSets = new List<CubeSet>();
+                Global.db.GetCubeSetsForProject(cs.ProjectId, cubeSets, out total);
+                if (cubeSets.Count > 0)
+                {
+                    cs.StdDeviation = cubeSets[0].StdDeviation; // put in existing stddev
+                }
+                else
+                {
+                    cs.StdDeviation = concreteGrade * 0.2;
+                }
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errmsg != null)
+                {
+                    errmsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errmsg = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void EditCubeSet()
+    {
+        navman.NavigateTo($"/CubeSets/Edit/{cs.Id}", true);
+    }
+
+    private void NewBatch()
+    {
+        navman.NavigateTo($"/Batches/New/0/{cs.Id}");
+    }
+}

@@ -1,0 +1,346 @@
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+    
+    <MudExpansionPanels Class="mt-4" id="barcodealloc">
+        <MudExpansionPanel IsInitiallyExpanded>
+            <TitleContent><MudText Typo="Typo.h6">Barcode Allocations</MudText></TitleContent>
+            <ChildContent>
+             <MudDataGrid ReadOnly="@rdonly" @ref="table" Items="@baList" Hover="true" Class="xs-12 mt-4 zebra"
+                    RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+                    T="BarcodeAllocation" EditMode="DataGridEditMode.Form" EditTrigger="DataGridEditTrigger.Manual"
+                    Dense>
+                <Columns>
+                    <PropertyColumn Property="x => x.Id" Title="ID" IsEditable="false" />
+                    <PropertyColumn Property="x => x.BarcodeStart" Title="Barcode Start" Format="D8" IsEditable="false" />
+                    <PropertyColumn Property="x => x.Qty" Title="Qty" />
+                    <PropertyColumn Property="x => x.BarcodeEnd" Title="Barcode End" Format="D8" IsEditable="false" />
+                     <TemplateColumn CellClass="d-flex justify-end">
+                         <CellTemplate>
+                             <MudStack Row>
+                                <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" 
+                                    OnClick="@context.Actions.StartEditingItemAsync" />
+                                 <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Filled.Delete" Color="Color.Secondary" 
+                                    OnClick="@(() => DeleteBarcodeAllocation(@context.Item))" />
+                             </MudStack>
+                         </CellTemplate>
+                     </TemplateColumn>
+                </Columns>
+                @* <PagerContent>
+                    <MudDataGridPager T="Cube" PageSizeOptions=@(new int[] {10, 25, 50}) />
+                </PagerContent> *@
+            </MudDataGrid>
+            @if (Util.CanEdit(user, editRoles))
+            {
+                <MudPaper Class="pa-4 mt-4" MaxWidth="1000px">
+                    <MudText Typo="Typo.body1"><b>New Barcode Allocation</b></MudText>
+                    <EditForm Model="@newBarcodeAlloc" OnValidSubmit="OnValidSubmit">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <MudGrid>
+                            <MudItem xs="12" md="3">
+                                <MudTextField Label="Barcode Start" @bind-Value="newBarcodeAlloc.BarcodeStart" For="@(() => newBarcodeAlloc.BarcodeStart)" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudTextField Label="Qty" @bind-Value="newBarcodeAlloc.Qty" For="@(() => newBarcodeAlloc.Qty)" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">Add</MudButton>
+                            </MudItem>
+                        </MudGrid>
+                    </EditForm>
+                </MudPaper>
+             }
+         </ChildContent>
+     </MudExpansionPanel>
+ </MudExpansionPanels>
+}
+
+<style>
+    .selected {
+        background-color: #1E88E5 !important;
+    }
+
+        .selected > td {
+            color: white !important;
+        }
+
+            .selected > td .mud-input {
+                color: white !important;
+            }
+</style>
+
+@code {
+    [Parameter]
+    public int projectId { get; set; }
+    [Parameter]
+    public bool rdonly { get; set; }
+    [Parameter]
+    public EventCallback Refresh { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry", "Service" };
+
+
+    MudDataGrid<BarcodeAllocation> table;
+    List<BarcodeAllocation> baList;
+    BarcodeAllocation selectedItem;
+    private int selectedRowNumber = -1;
+    int totalBAs;
+    bool dataAvail;
+    string statusMessage;
+    BarcodeAllocation newBarcodeAlloc = new BarcodeAllocation();
+    BarcodeAllocation oldBarcodeAlloc;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Display();
+        }
+    }
+
+    private void Display()
+    {
+        bool status;
+        baList = new List<BarcodeAllocation>();
+        try
+        {
+            status = Global.db.GetBarcodeAllocations(projectId, baList, out totalBAs);
+            dataAvail = true;
+            if (!status)
+            {
+                statusMessage = "Error reading barcode allocation data from database.";
+                totalBAs = 0;
+                return;
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            totalBAs = 0;
+        }
+    }
+
+    // events
+    private string SelectedRowClassFunc(BarcodeAllocation b, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(b))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<BarcodeAllocation> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+          //navman.NavigateTo($"/Cubes/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+
+    void StartedEditingItem(BarcodeAllocation ba)
+    {
+        oldBarcodeAlloc = ba;
+    }
+
+    void CanceledEditingItem(BarcodeAllocation ba)
+    {
+        ba = oldBarcodeAlloc;
+    }
+
+    async void CommittedItemChanges(BarcodeAllocation ba)
+    {
+        try
+        {
+            bool valid = Global.db.BarcodeAllocationValid(ba);
+            if (!valid)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Barcode Allocation for ID {ba.Id} is not valid.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Barcode Allocation", par);
+                await dialog.Result;
+
+                StateHasChanged();
+                //navman.ReloadPage();
+                return;
+            }
+
+            bool status = Global.db.UpdateBarcodeAllocation(ba, user.Identity.Name);
+            if (!status)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Barcode Allocation {ba.Id}.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Barcode Allocation", par);
+                await dialog.Result;
+
+                StateHasChanged();
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Barcode Allocation {ba.Id} modified.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Update Barcode Allocation", par);
+                await dialog.Result;
+
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+        }
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        try
+        {
+            bool success;
+
+            BarcodeAllocation b = (BarcodeAllocation)context.Model;
+            success = Global.db.InsertBarcodeAllocation(projectId, b, user.Identity.Name);
+
+            if (success)
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Barcode Allocation ID {b.Id} has been added successfully.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Add Barcode Allocation", par);
+                await dialog.Result;
+
+                StateHasChanged();
+
+                navman.ReloadPage();
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error adding Barcode Allocation. Check that there is no overlapping allocation.");
+                var dialog = await DialogService.ShowAsync<InfoMsgBox>("Add Barcode Allocation", par);
+                await dialog.Result;
+            }
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+        }
+    }
+
+    private async void DeleteBarcodeAllocation(BarcodeAllocation ba)
+    {
+        if (ba != null)
+        {
+            bool? result = await DialogService.ShowMessageBox("Delete Barcode Allocation",
+            $"Do you really want to delete barcode allocation {ba.BarcodeStart:D8} to {ba.BarcodeEnd:D8}? This action cannot be undone.",
+            yesText: "Delete!", cancelText: "Cancel");
+
+            if (result != null)
+            {
+                try
+                {
+                    bool status = Global.db.DeleteBarcodeAllocation(ba.Id, user.Identity.Name);
+                    if (status)
+                    {
+                        var par = new DialogParameters<InfoMsgBox>();
+                        par.Add(x => x.ContentText, $"Barcode Allocation ID {ba.Id} has been deleted successfully.");
+                        var dialog = await DialogService.ShowAsync<InfoMsgBox>("Delete Barcode Allocation", par);
+                        await dialog.Result;
+
+                        StateHasChanged();
+                        navman.ReloadPage();
+                    }
+                    else
+                    {
+                        var par = new DialogParameters<InfoMsgBox>();
+                        par.Add(x => x.ContentText, $"Error deleting Barcode Allocation. There may be barcodes allocated within the range.");
+                        var dialog = await DialogService.ShowAsync<InfoMsgBox>("Delete Barcode Allocation", par);
+                        await dialog.Result;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    dataAvail = true;
+                    if (statusMessage != null)
+                    {
+                        statusMessage += "; " + ex.Message;
+                    }
+                    else
+                    {
+                        statusMessage = ex.Message;
+                    }
+                }
+            }
+        }
+    }
+
+}

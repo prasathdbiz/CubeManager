@@ -1,0 +1,292 @@
+@page "/Users/{action}/{UserId}"
+@page "/Users/{action}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Users/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">User does not exist.</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        <MudPaper Class="pa-4" MaxWidth="@Global.contentMaxWidth">
+            <EditForm Model="@user" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@update" Label="User ID" @bind-Value="user.userId" For="@(() => user.userId)"
+                                      Validation="@(new Func<string, string>(CheckUserId))" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="1">
+                        @if (user.userId != null && !update)
+                        {
+                            @if (userIdUnique)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" Class="mt-6"/>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Clear" Color="Color.Error" Class="mt-6" />
+                            }
+                        }
+                    </MudItem>
+                    <MudItem md="7" />
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@rdonly" Label="User Name" @bind-Value="user.userName" For="@(() => user.userName)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@rdonly" Label="Windows ID" @bind-Value="user.windowsId" For="@(() => user.windowsId)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudSelect ReadOnly="@rdonly" T="string" Label="Privilege" @bind-Value="user.userPrivilegeStr"
+                                   For="@(() => user.userPrivilegeStr)" AnchorOrigin="Origin.BottomCenter" Class="me-4">
+                            <MudSelectItem Value="@("CustomerService")" />
+                            <MudSelectItem Value="@("DataEntry")" />
+                            <MudSelectItem Value="@("Administrator")" />
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="6" md="4">
+                        <MudCheckBox ReadOnly="@rdonly" Label="Enabled" @bind-Checked="user.enabled" For="@(() => user.enabled)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@rdonly" Label="Tel" @bind-Value="user.phone" For="@(() => user.phone)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@rdonly" Label="Mobile" @bind-Value="user.mobile" For="@(() => user.mobile)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="@rdonly" Label="Email" @bind-Value="user.email" For="@(() => user.email)" Class="me-4" />
+                    </MudItem>
+                    @if (@update)
+                    {
+                        <MudItem xs="12" md="4">
+                            <MudTextField ReadOnly Label="Last Login" @bind-Value="user.lastLogin" For="@(() => user.lastLogin)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                         </MudItem>
+                        <MudItem xs="12" md="4">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="user.lastUpdate" For="@(() => user.lastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="12" md="4"></MudItem>
+                    }
+
+                @if (!@rdonly)
+                {
+                    <MudItem xs="12" md="3">
+                        @if (@update)
+                        {
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" StartIcon="@Icons.Material.Filled.Save">
+                                Update
+                            </MudButton>
+                        }
+                        else
+                        {
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" StartIcon="@Icons.Material.Filled.Add">
+                                Add
+                            </MudButton>
+                        }
+                    </MudItem>
+@*                     @if (@update)
+                    {
+                        <MudItem>
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5"
+                                    OnClick="GenerateNewPassword">Generate New Password</MudButton>
+                        </MudItem>
+                    } *@
+                    <MudItem xs="12" md="9" Class="mt-4">
+                        <ValidationSummary />
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" StartIcon="@Icons.Material.Filled.Edit" OnClick="EditUser">
+                                Edit
+                            </MudButton>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string UserId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal authuser;
+    string[] editRoles = { "Administrator" };
+
+    bool dataOk;
+    User user = null;
+    bool rdonly;
+    bool update = true;
+    string userIcon;
+    bool userIdUnique;
+    string userName;
+
+    protected override async void OnInitialized()
+    {
+        authuser = (await authenticationStateTask).User;
+        List<ClaimsIdentity> list = (List<ClaimsIdentity>)authuser.Identities;
+        userName = list.Count > 1 ? list[1].Name : list[0].Name;
+
+        rdonly = (action == "View");
+
+        try
+        {
+            if (action == "New")
+            {
+                user = new User();
+                update = false;
+            }
+            else
+            {
+                user = Global.db.GetUser(UserId);
+                if (user == null) return;
+            }
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+        }
+    }
+
+    private string CheckUserId(string id)
+    {
+        try
+        {
+            bool found = Global.db.HasUserId(id);
+            userIcon = found ? "Icons.Material.Filled.Clear" : "Icons.Material.Filled.Check";
+            userIdUnique = !found;
+            StateHasChanged();
+
+            return found ? "User ID not unique" : null;
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            return null;
+        }
+    }
+
+    private async Task<bool> NewPassword(User u)
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var par = new DialogParameters<NewPasswordDialog>();
+        par.Add(x => x.u, u);
+        var dialog = await DialogService.ShowAsync<NewPasswordDialog>("New Password", par, options);
+        var result = await dialog.Result;
+
+        return !result.Canceled;
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        success = false;
+
+        User s = (User)context.Model;
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateUser(s, true, userName);
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"User {s.userId} has been updated successfully.");
+                    DialogService.Show<InfoMsgBox>("Update User", par);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error updating User {s.userId}.");
+                    DialogService.Show<InfoMsgBox>("Update User", par);
+                }
+            }
+            else
+            {
+                bool pwOk = await NewPassword(s);
+                if (pwOk)
+                {
+                    s.password = Util.EncryptPassword(s.password, s.privilege);
+                    success = Global.db.AddUser(s, userName);
+                }
+
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"User {s.userId} has been added successfully.");
+                    var dialog = await DialogService.ShowAsync<InfoMsgBox>("Add User", par);
+                    var result = await dialog.Result;
+
+                    navman.NavigateTo($"/Users/View/{s.userId}", true);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error adding User {s.userId}.");
+                    DialogService.Show<InfoMsgBox>("Add User", par);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var par = new DialogParameters<InfoMsgBox>();
+            par.Add(x => x.ContentText, $"Error: {ex.Message}");
+            DialogService.Show<InfoMsgBox>("Error", par);
+        }
+    }
+
+    private void EditUser()
+    {
+        navman.NavigateTo($"/Users/Edit/{UserId}", true);
+    }
+
+    // private async void GenerateNewPassword()
+    // {
+    //     bool? result = await DialogService.ShowMessageBox("Generate New Password",
+    //         $"Do you want to generate new password for user {user.userId}: {user.userName}? " +
+    //         "An email with the password will be sent to the user.",
+    //         yesText: "Generate!", cancelText: "Cancel");
+
+    //     if (result != null)
+    //     {
+    //         bool status = true; // TODO:
+    //         if (status)
+    //         {
+    //             var par = new DialogParameters<InfoMsgBox>();
+    //             par.Add(x => x.ContentText, $"New password generated for {user.userId}. An email has been sent to the user.");
+    //             DialogService.Show<InfoMsgBox>("Generate New Password", par);
+    //         }
+    //         else
+    //         {
+    //             var par = new DialogParameters<InfoMsgBox>();
+    //             par.Add(x => x.ContentText, $"Error generating new password for User {user.userId}.");
+    //             DialogService.Show<InfoMsgBox>("Generate New Password", par);
+    //         }
+    //     }
+    // }
+}

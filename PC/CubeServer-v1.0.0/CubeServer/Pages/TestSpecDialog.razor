@@ -1,0 +1,47 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudText Typo="Typo.h6">Add Test Specifications</MudText>
+        <MudForm @ref="form">
+        <MudTextField Label="Spec ID" @bind-Value="@ts.SpecId" For="@(() => @ts.SpecId)" />
+        <MudTextField Label="Description" @bind-Value="@ts.Description" For="@(() => @ts.Description)" />
+        <MudTextField Label="Test Standard" @bind-Value="@ts.TestStandard" For="@(() => @ts.TestStandard)" />
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [Parameter] 
+    public string specId { get; set; }
+
+    [CascadingParameter] 
+    MudDialogInstance MudDialog { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    ClaimsPrincipal user;
+    MudForm form;
+    TestSpec ts;
+    string errors;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+        ts = new TestSpec() { SpecId = "" };
+    }
+
+    void Submit() 
+    {
+        bool status = Global.db.InsertTestSpec(ts, user.Identity.Name);
+        if (status)
+        {
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+    }
+    void Cancel() => MudDialog.Cancel();
+}
+

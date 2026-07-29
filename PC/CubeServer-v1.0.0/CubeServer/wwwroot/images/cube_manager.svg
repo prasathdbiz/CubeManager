@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   viewBox="55 55 1536 512"
+   height="400"
+   width="1200"
+   version="1.1"
+   id="svg20"
+   sodipodi:docname="cube_manager.svg"
+   inkscape:export-filename="tuvsud-logo.png"
+   inkscape:export-xdpi="24.58"
+   inkscape:export-ydpi="24.58"
+   inkscape:version="1.2.1 (9c6d41e410, 2022-07-14)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
+     id="namedview22"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="0.58619152"
+     inkscape:cx="1105.4408"
+     inkscape:cy="409.4225"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg20" />
+  <defs
+     id="defs10">
+    <linearGradient
+       id="b"
+       x1="375"
+       y1="141.5"
+       x2="375"
+       y2="608.5"
+       gradientUnits="userSpaceOnUse"
+       gradientTransform="translate(-70,-70)">
+      <stop
+         offset=".07"
+         stop-color="#0046ad"
+         id="stop2" />
+      <stop
+         offset=".41"
+         stop-color="#00a0e1"
+         id="stop4" />
+      <stop
+         offset=".88"
+         stop-color="#0046ad"
+         id="stop6" />
+    </linearGradient>
+    <filter
+       id="a"
+       x="0"
+       y="0"
+       width="1"
+       height="1">
+      <feDropShadow
+         dx="0"
+         dy="0"
+         stdDeviation="20"
+         flood-color="rgba(0,0,0,.45)" />
+    </filter>
+  </defs>
+  <path
+     filter="url(#a)"
+     fill="#ffffff"
+     d="M 408.553,55 H 201.447 L 55,201.447 V 408.553 L 201.447,555 H 408.553 L 555,408.553 V 201.447 Z"
+     id="path12" />
+  <path
+     fill="url(#b)"
+     d="M 401.719,71.5 H 208.28 L 71.5,208.281 V 401.72 L 208.281,538.5 H 401.72 L 538.5,401.719 V 208.28 Z"
+     id="path14"
+     style="fill:url(#b)" />
+  <path
+     fill="#ffffff"
+     d="M 370.653,146.5 H 239.347 L 146.5,239.347 V 370.653 L 239.347,463.5 H 370.653 L 463.5,370.653 V 239.347 Z"
+     id="path16" />
+  <path
+     fill="#0b253b"
+     d="m 178.5,353.473 h 253 v 5 h -253 z m 121.41,30.915 h -5.023 v -7.443 h 5.023 z m 9.259,-7.443 h -5.024 v 7.443 h 5.024 z M 234,411.932 c 0.298,10.422 8.113,17.568 21.064,17.568 11.462,0 19.278,-6.476 19.278,-15.855 0.075,-10.273 -8.337,-13.027 -16.97,-14.59 -8.188,-1.415 -13.547,-2.531 -13.547,-7.89 0,-4.913 4.093,-7.445 9.974,-7.445 6.327,0 10.495,3.574 11.164,8.859 h 8.56 c -0.372,-9.603 -7.815,-16.079 -19.724,-16.079 -11.091,0 -18.534,6.178 -18.534,15.26 0,10.347 8.187,13.1 16.822,14.59 8.262,1.488 13.695,2.68 13.695,8.188 0,4.987 -4.465,7.741 -10.643,7.741 -7.295,0 -12.058,-4.094 -12.505,-10.198 z m 47.484,-5.21 c 0,14.813 6.997,22.778 20.469,22.778 13.546,0 20.618,-7.965 20.618,-22.778 v -29.777 h -8.56 v 30.223 c 0,9.677 -3.721,14.739 -12.058,14.739 -8.187,0 -11.909,-5.062 -11.909,-14.739 v -30.224 h -8.56 z m 67.944,22.331 c 16.3,0 26.572,-10.644 26.572,-26.127 0,-15.483 -10.272,-25.981 -26.572,-25.981 h -17.715 v 52.108 z m -9.156,-44.662 h 9.156 c 11.462,0 17.79,7.369 17.79,18.535 0,11.166 -6.328,18.683 -17.79,18.683 h -9.156 V 384.39 Z M 431.5,233.5 397.134,335 H 371.23 l -29.271,-86.094 v 42.522 c 0,28.796 -14.262,44.572 -41.611,44.572 -27.207,0 -41.533,-15.776 -41.533,-44.572 V 252.37 H 229.438 V 335 H 207.732 V 252.37 H 178.5 V 233.5 h 102.022 v 59.084 c 0,16.064 5.935,24.746 19.826,24.746 14.037,0 19.9,-8.682 19.9,-24.746 V 233.5 h 39.486 l 24.376,75.162 24.957,-75.162 z m -144.3,18.87 h 9.987 V 233.5 H 287.2 Z m 16.385,0 h 9.987 V 233.5 h -9.987 z"
+     id="path18" />
+  <text
+     xml:space="preserve"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:204.8px;line-height:1;font-family:Arial;-inkscape-font-specification:'Arial Bold';white-space:pre;inline-size:1920.95;display:inline;fill:#000000;fill-opacity:1;stroke:none;stroke-width:1.28"
+     x="854.19275"
+     y="234.05411"
+     id="text182"
+     transform="translate(-251.2377,43.5465)"><tspan
+       x="854.19275"
+       y="234.05411"
+       id="tspan332"><tspan
+         style="font-family:Calibri;-inkscape-font-specification:'Calibri Bold'"
+         id="tspan330">CUBE
+</tspan></tspan><tspan
+       x="854.19275"
+       y="444.1286"
+       id="tspan336"><tspan
+         style="font-family:Calibri;-inkscape-font-specification:'Calibri Bold'"
+         id="tspan334">MANAGER</tspan></tspan></text>
+</svg>

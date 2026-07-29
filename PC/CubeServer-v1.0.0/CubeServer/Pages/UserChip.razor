@@ -1,0 +1,15 @@
+﻿@inject IDialogService DialogService
+
+<MudMenuItem Href="@( $"/Users/View/{Global.userName}" )">Profile</MudMenuItem>
+<MudMenuItem OnClick="ChangePassword">Change Password</MudMenuItem>
+<MudMenuItem Href="/Logout">Log Out</MudMenuItem>
+
+@code
+{
+    async void ChangePassword()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<ChangePasswordDialog>("Change Password", options);
+        var result = await dialog.Result;
+    }
+}

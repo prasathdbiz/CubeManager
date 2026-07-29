@@ -1,0 +1,32 @@
+PLC_LostComms, Lost Comms with PLC
+PLC_BadBarcode, Bad Barcode from PLC
+PLC_BadBarcodeTester, Bad Barcode Tester Number from PLC
+PLC_BadDimTester, Bad Dimension Tester Number from PLC
+
+T1_LostComms, Lost Comms with Tester 1
+T1_StartFailed, Tester 1 Start Test Failed
+T1_SetParFailed, Tester 1 Set Parameters Failed
+
+T2_LostComms, Lost Comms with Tester 2
+T2_StartFailed, Tester 2 Start Test Failed
+T2_SetParFailed, Tester 2 Set Parameters Failed
+
+T3_LostComms, Lost Comms with Tester 3
+T3_StartFailed, Tester 3 Start Test Failed
+T3_SetParFailed, Tester 3 Set Parameters Failed
+
+T4_LostComms, Lost Comms with Tester 4
+T4_StartFailed, Tester 4 Start Test Failed
+T4_SetParFailed, Tester 4 Set Parameters Failed
+
+T5_LostComms, Lost Comms with Tester 5
+T5_StartFailed, Tester 5 Start Test Failed
+T5_SetParFailed, Tester 5 Set Parameters Failed
+
+T6_LostComms, Lost Comms with Tester 6
+T6_StartFailed, Tester 6 Start Test Failed
+T6_SetParFailed, Tester 6 Set Parameters Failed
+
+SVR_LostComms, Lost Comms with Cube Server
+
+

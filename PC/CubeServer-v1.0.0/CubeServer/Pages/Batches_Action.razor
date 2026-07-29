@@ -1,0 +1,431 @@
+@page "/Batches/{action}/{ScoNum:int}/{BatchId:int}"
+@page "/Batches/{action}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Batches/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">@errmsg</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        @if (project != null)
+        {
+            <MudPaper Class="px-4" Width="100%">
+                <MudText><b>@project.ProjectCode @project.ProjectName</b></MudText>
+            </MudPaper>
+        }
+        <MudPaper Class="pa-4 mt-4" Width="1000px">            
+            <EditForm Model="@batch" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    @if (update)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Batch ID" @bind-Value="batch.BatchNum" For="@(() => batch.BatchNum)" Class="me-4" />
+                        </MudItem>
+                    }
+                    <MudItem xs="12" md="3">
+                        @if (rdonly)
+                        {
+                            <MudTextField ReadOnly="true" Label="CubeSet ID" @bind-Value="batch.CubeSetId" For="@(() => batch.CubeSetId)" Class="me-4" />
+                        }
+                        else
+                        {
+                            <MudTextField ReadOnly="true" Label="CubeSet ID" @bind-Value="batch.CubeSetId" For="@(() => batch.CubeSetId)"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectCubeSet" 
+                                          Class="me-4" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField T="int" ReadOnly="@rdonly" Label="Test Age" @bind-Value="batch.TestAge"  For="@(() => batch.TestAge)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudDatePicker Label="Target Test Date" ReadOnly="true" @bind-Date="batch.TargetTestDate" For="@(() => batch.TargetTestDate)" Class="me-4"
+                                       DateFormat="yyyy-MM-dd" />
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudSelect ReadOnly="@rdonly" Label="Dimension (mm)" @bind-Value="batch.Dimension" For="@(() => batch.Dimension)" Class="me-4">
+                            @foreach(int d in dimensionsAvail)
+                            {
+                                <MudSelectItem T="double" Value="@d" />
+                            }
+                        </MudSelect>
+                    </MudItem>
+                    @if (rdonly)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="@rdonly" Label="Witness No." @bind-Value="batch.WitnessNum" For="@(() => batch.WitnessNum)" Class="me-4"
+                                          HelperText="1-99 for witness, 0 for no witness" />
+                        </MudItem>                        
+                    }
+                    else if (update)
+                    {
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Witness No." @bind-Value="batch.WitnessNum" For="@(() => batch.WitnessNum)" Class="me-4"
+                                          HelperText="1-99 for witness, 0 for no witness" 
+                                          Adornment="Adornment.End" AdornmentIcon="@Icons.Material.Filled.ElectricBolt" OnAdornmentClick="GenerateWitnessNum" />
+                        </MudItem>
+                    }
+                    @if (!newItem)
+                    {
+                        <MudItem xs="12" Class="mt-4">
+                            <MudText Typo="Typo.h6">Calculated Values</MudText>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Avg Strength" @bind-Value="batch.AvgStrength" For="@(() => batch.AvgStrength)" Class="me-4"
+                            Format="0.0" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Rolling Avg Strength" @bind-Value="batch.RollingAvgStrength" For="@(() => batch.RollingAvgStrength)" Class="me-4"
+                            Format="0.0" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Criterion A" @bind-Value="batch.CriterionA" For="@(() => batch.CriterionA)" Class="me-4"
+                            Format="0.0" />
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudTextField ReadOnly="true" Label="Criterion B" @bind-Value="batch.CriterionB" For="@(() => batch.CriterionB)" Class="me-4"
+                            Format="0.0" />
+                        </MudItem>
+                        <MudItem xs="12" Class="mt-4" />
+                    }
+                    @if (@update)
+                    {
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Created" @bind-Value="batch.CreateDate" For="@(() => batch.CreateDate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Create User" @bind-Value="batch.CreateUser" For="@(() => batch.CreateUser)"  Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="batch.LastUpdate" For="@(() => batch.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update User" @bind-Value="batch.LastUpdateUser" For="@(() => batch.LastUpdateUser)" Class="me-4" />
+                        </MudItem>
+                    }
+                
+                @if (Util.CanEdit(user, editRoles))
+                {
+                    @if (!@rdonly)
+                    {
+                        <MudItem xs="12" md="3" Class="mt-4">
+                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">
+                                @if (@update)
+                                {
+                                    <span>Update</span>
+                                }
+                                else
+                                {
+                                    <span>Add</span>
+                                }
+                            </MudButton>
+                        </MudItem>
+                        <MudItem xs="12" md="4" Class="mt-4">
+                            <ValidationSummary />
+                            </MudItem>
+
+                    }
+                    else // readonly
+                    {
+                        @if (curCubeQty == 0)
+                        {
+                            <MudItem xs="12" md="1" Class="mt-4">
+                                <MudTextField Label="Qty" @bind-Value="@newCubeQty" Variant="Variant.Outlined" Margin="Margin.Dense" Class="me-4" />
+                            </MudItem>
+                            <MudItem xs="12" md="3">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="NewCubes">
+                                    New Cubes
+                            </MudButton>
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem md="1" />
+                        }
+                        <MudSpacer />
+                        <MudItem xs="12" md="3" Style="text-align:right">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-10" OnClick="NewBatch">
+                                New Batch
+                            </MudButton>
+                        </MudItem>
+                        <MudItem xs="12" md="3" Style="text-align:right">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5 px-10" OnClick="EditBatch">
+                            Edit
+                        </MudButton>
+                    </MudItem>
+                }
+                }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+
+    @if (rdonly)
+    {
+        <MudDivider DividerType="DividerType.FullWidth" Class="mt-6"/>
+        <MudPaper  Elevation="0" Class="mt-6">
+            <CubeList scoNum="ScoNum" batchId="BatchId" cubeQty="@newCubeQty" rdonly="@(!rdonly)" />
+        </MudPaper>
+    }
+
+}
+
+@code {
+    [Parameter]
+    public int ScoNum { get; set; }
+    [Parameter]
+    public int BatchId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Batch batch = null;
+    bool rdonly;
+    bool update = true;
+    bool newItem = false;
+    double[] dimensionsAvail = { 100, 150 };
+    int newCubeQty = 3;
+    int curCubeQty;
+    CubeSet cs;
+    Project project;
+
+    string errmsg = "Batch does not exist.";
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        rdonly = (action == "View");
+
+        if ((action == "New" || action == "Edit") && !Util.CanEdit(user, editRoles))
+        {
+            errmsg = "User not authorized.";
+            return;
+        }
+        try
+        {
+            if (action == "New")
+            {
+                batch = new Batch();
+                update = false;
+                newItem = true;
+
+                int cubeSetId = BatchId; // for new batch, parameter is cubeset id
+                batch.CubeSetId = cubeSetId;
+
+                (batch.ScoNum, batch.Id) = Global.db.CreateBatchNum(cubeSetId);
+                batch.BatchNum = string.Format("{0}-{1}", batch.ScoNum, batch.Id);
+
+            }
+            else
+            {
+                batch = Global.db.GetBatch(ScoNum, BatchId);
+                if (batch == null) return;
+
+                curCubeQty = Global.db.GetCubeQtyForBatch(ScoNum, BatchId);
+
+            }
+
+            cs = Global.db.GetCubeSet(batch.CubeSetId);
+            if (cs != null)
+            {
+                project = Global.db.GetProject(cs.ProjectId);
+                batch.CastingDate = cs.CastingDate;
+            }
+
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+    }
+
+    private async void OnValidSubmit(EditContext context)
+    {
+        Batch b = (Batch)context.Model;
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateBatch(b, user.Identity.Name);
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Batch {b.BatchNum} has been updated successfully.");
+                    var res = await DialogService.ShowAsync<InfoMsgBox>("Update Batch", par);
+                    await res.Result;
+
+                    navman.NavigateTo($"/Batches/View/{b.ScoNum}/{b.Id}", true);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error updating Batch {batch.BatchNum}.");
+                    DialogService.Show<InfoMsgBox>("Update Batch", par);
+                }
+            }
+            else // add
+            {
+                (batch.ScoNum, batch.Id) = Global.db.CreateBatchNum(b.CubeSetId);
+                batch.BatchNum = string.Format("{0}-{1}", batch.ScoNum, batch.Id);
+
+                success = Global.db.InsertBatch(b, user.Identity.Name);
+                if (success)
+                {
+                    StateHasChanged();
+
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Batch {b.BatchNum} has been added successfully.");
+                    var dialog = await DialogService.ShowAsync<InfoMsgBox>("Add Batch", par);
+                    await dialog.Result;
+
+                    navman.NavigateTo($"/Batches/View/{b.ScoNum}/{b.Id}", true);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error adding Batch.");
+                    DialogService.Show<InfoMsgBox>("Add Batch", par);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+        }
+    }
+
+    // private void Submit()
+    // {
+    //     StateHasChanged();
+
+    //     Batch c = batch;
+    //     success = Global.db.InsertCubeSet(c, user.Identity.Name);
+    // }
+
+    private async void SelectCubeSet()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<CubeSetSelect>("Select CubeSet", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            CubeSet cs = (CubeSet)result.Data;
+            batch.CubeSetId = cs.Id;
+
+            StateHasChanged();
+        }
+    }
+
+    private void EditBatch()
+    {
+        navman.NavigateTo($"/Batches/Edit/{batch.ScoNum}/{batch.Id}", true);
+    }
+
+    private void NewBatch()
+    {
+        navman.NavigateTo($"/Batches/New/0/{batch.CubeSetId}", true);
+    }
+
+    private void NewCubes()
+    {
+        StateHasChanged();
+
+        //navman.NavigateTo($"/Cubes/New/{batch.ScoNum}/{batch.Id}");
+    }
+
+    private void GenerateWitnessNum()
+    {
+        if (batch.TargetTestDate == null) return;
+        try
+        {
+            if (batch.WitnessNum == 0)
+            {
+                int witnessNum = Global.db.GetNextWitnessNum((DateTime)batch.TargetTestDate);
+                if (witnessNum > 0)
+                {
+                    batch.WitnessNum = witnessNum;
+                    StateHasChanged();
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error getting next Witness Number.");
+                    DialogService.Show<InfoMsgBox>("Get Witness Number", par);
+                }
+            }
+            else
+            {
+                batch.WitnessNum = 0;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errmsg != null)
+            {
+                errmsg += "; " + ex.Message;
+            }
+            else
+            {
+                errmsg = ex.Message;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateCastingDate(DateTime? dt)
+    {
+        batch.CastingDate = dt;
+        StateHasChanged();
+    }
+
+    private void UpdateTestAge(int age)
+    {
+        batch.TestAge = age;
+        StateHasChanged();
+    }
+
+}

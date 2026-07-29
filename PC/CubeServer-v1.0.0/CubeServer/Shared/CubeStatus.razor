@@ -1,0 +1,179 @@
+@inject NavigationManager navman
+
+<MudDataGrid @ref="table" Items="@cubeList" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-n4"
+             RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged"
+             T="Cube" RowStyleFunc="@RowStyle" Dense>
+    <Columns>
+        <PropertyColumn Property="x => x.Barcode" Title="Cube" Sortable="false" Format="D8" />
+        <PropertyColumn Property="x => x.TesterId" Title="Tester" Sortable="false" />
+        <PropertyColumn Property="x => x.StatusCode" Title="Code" Sortable="false" />
+
+    </Columns>
+    @* <PagerContent>
+        <MudDataGridPager T="Cube" PageSizeOptions=@(new int[] {10, 25, 50}) />
+    </PagerContent> *@
+</MudDataGrid>
+
+@code {
+    bool dataAvail;
+    MudDataGrid<Cube> table;
+    List<Cube> cubeList = new List<Cube>();
+    Cube selectedItem;
+    string statusMessage;
+    int totalCubes;
+    string searchStr;
+    string limitStr = "1000";
+    int limit;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    List<Batch> batches = new List<Batch>();
+
+    Timer timer;
+    bool running;
+
+    protected override void OnInitialized()
+    {
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            timer = new Timer(new TimerCallback(_ => { Display(); }), null, 1000, 5000);
+        }
+    }
+
+    private string FormatStatusCode(int result, string StatusCode)
+    {
+        if (result == 1) return "P";
+        else if (result == 2) return StatusCode;
+        else return "";
+    }
+
+    private void Display()
+    {
+        if (running) return;
+
+        running = true;
+        try
+        {
+            bool status = false;
+
+            cubeList.Clear();
+
+            if (Global.db == null)
+            {
+                statusMessage = "Database not initialized.";
+                totalCubes = 0;
+                dataAvail = false;
+                return;
+            }
+
+            List<Cube> cl = new List<Cube>();
+            status = Global.db.GetCubesForToday(cl, CubeQueryOption.FailOnly, true);
+            if (status)
+            {
+                cubeList.AddRange(cl);
+                dataAvail = true;
+                statusMessage = null;
+            }
+            else
+            {
+                dataAvail = false;
+                statusMessage = "Error reading Cube data from database.";
+                totalCubes = 0;
+                return;
+            }
+
+            InvokeAsync(() => { StateHasChanged(); });
+        }
+        catch (Exception ex)
+        {
+            dataAvail = false;
+            statusMessage = ex.Message;
+            totalCubes = 0;
+            InvokeAsync(() => { StateHasChanged(); });
+        }
+        finally
+        {
+            running = false;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private Func<Cube, int, string> RowStyle => (x, i) =>
+    {
+        DateTime testDate = x.ActualTestDate.HasValue ? (DateTime)x.ActualTestDate : DateTime.Today;
+
+        TimeSpan ts = (DateTime.Now - (DateTime)testDate);
+        double hours = ts.TotalHours;
+        if (hours > 2) return "background-color: red";
+        else if (hours > 1) return "background-color: yellow";
+        return "";
+    };
+
+    // events
+    private string SelectedRowClassFunc(Cube c, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(c))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Cube> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Cubes/View/{args.Item.Barcode}", true);
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Cube> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Cube, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.BatchId.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.Barcode.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.TesterId.ToString().Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SampleRef.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}

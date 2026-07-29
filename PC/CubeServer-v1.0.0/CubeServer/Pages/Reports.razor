@@ -1,0 +1,355 @@
+@page "/Reports"
+@attribute [Authorize(Roles = "Administrator, DataEntry")]
+
+@using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.AspNetCore.Hosting
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService Dialog
+
+<PageTitle>Report History</PageTitle>
+
+@if (!dataAvail)
+{
+    <p><em>Loading...</em></p>
+}
+else
+{
+    if (statusMessage != null)
+    {
+        <MudAlert Severity="Severity.Error">@statusMessage</MudAlert>
+    }
+
+    <MudGrid>
+        <MudItem xs="12" md="3">
+            <MudTextField ReadOnly="true" Label="Project ID" Placeholder="Select Project" @bind-Value="projectCode" For="@(() => projectCode)"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectReport" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" @bind-Value="reportStatus" Label="Report Status" Placeholder="Select Report Status" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="@("Pending")" />
+                <MudSelectItem Value="@("Released")" />
+                <MudSelectItem Value="@("Sent")" />
+                <MudSelectItem Value="@("All")" />
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudSelect T="string" @bind-Value="reportType" Label="Report Type" Placeholder="Select Report Type" AnchorOrigin="Origin.BottomCenter">
+                <MudSelectItem Value="@("Daily")" />
+                <MudSelectItem Value="@("Monthly")" />
+                <MudSelectItem Value="@("Statistical")" />
+                <MudSelectItem Value="@("All")" />
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudDatePicker Label="@date1Str" @bind-Date="date1" For="@(() => date1)" Class="me-4"
+                            DateFormat="yyyy-MM-dd" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudDatePicker Label="End Date" @bind-Date="date2" For="@(() => date2)" Class="me-4"
+                        DateFormat="yyyy-MM-dd" />
+        </MudItem>
+        <MudItem xs="12" md="3">
+            <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.Article"
+                        OnClick="@(() => ShowReports())" Class="px-6 mt-4">Show Reports</MudButton>
+        </MudItem>
+    </MudGrid>
+    @if (reportInProgress)
+    {
+        <MudProgressLinear Color="Color.Info" Indeterminate="true" />
+    }
+    <MudDataGrid @ref="table" Items="@reports" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" T="Report" 
+                 QuickFilter="@QuickFilter" Dense>
+        <Columns>
+             <PropertyColumn Property="x => x.Id" Title="Report Id" />
+            <PropertyColumn CellStyle="max-width:100px" Property="x => x.ProjectCode" Title="Project ID" />
+            <PropertyColumn Property="x => x.ReportType" Title="Report Type" />
+            <PropertyColumn Property="x => Path.GetFileName(x.FileName)" Title="File name" />
+            <PropertyColumn Property="x => x.ReportDate" Title="Date" Format="yyyy-MM-dd HH:mm:ss"/>
+            <PropertyColumn Property="x => Report.ReleaseStr(x.Released)" Title="Released" />
+            <TemplateColumn CellClass="d-flex justify-end">
+                <CellTemplate>
+                    <MudStack Row>
+                     <MudTooltip Text="View Report" Color="Color.Primary" Placement="Placement.Top" Arrow="true">
+                     <MudIconButton Size="@Size.Medium" Icon="@Icons.Material.Outlined.RemoveRedEye" Color="Color.Primary"
+                                    OnClick="@(() => ViewReport(@context.Item))" />
+                     </MudTooltip>
+                     @* <MudTooltip Text="Release Report!" Color="Color.Secondary" Placement="Placement.Top" Arrow="true">
+                     <MudIconButton Size="@Size.Small" Icon="@Icons.Material.Outlined.ArrowOutward" Color="Color.Secondary"
+                                    OnClick="@(() => ReleaseReport(@context.Item))" />
+                     </MudTooltip> *@
+                     </MudStack>
+                 </CellTemplate>
+             </TemplateColumn>
+        </Columns>
+        <PagerContent>
+            <MudDataGridPager T="Report" PageSizeOptions=@(new int[] {10, 25, 50}) />
+        </PagerContent>
+    </MudDataGrid>
+    <div id="ReportView">
+    @if (pdffile != null)
+    {
+        <MudText Class="mt-6"><b>@Path.GetFileName(reportFile)</b></MudText>
+        <MudPaper MaxWidth="100%" Height="700px" Class="mt-4">
+            <iframe src="@pdffile" style="width: 100%;height: 100%;border: none;"></iframe>
+        </MudPaper>
+    }
+    </div>
+}
+
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataAvail;
+    MudDataGrid<Report> table;
+    List<Report> reports;
+    Report selectedItem;
+    string statusMessage;
+    int totalReports;
+    string searchStr;
+
+    string reportStatus = "All";
+
+    string reportType = "All";
+    DateTime? date1, date2;
+    string date1Str = "Start Date";
+    bool date2required = true;
+    string reportFile = null;
+    string pdffile = null;
+
+    string projectCode = "All";
+    bool reportInProgress = false;
+    bool updateInProgress = false;
+
+    int curPage { get; set; } = 1;
+    int totalPages { get; set; } = 1;
+    private int selectedRowNumber = -1;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+    protected override void OnParametersSet()
+    {
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            DateTime date = DateTime.Today;
+            date1 = new DateTime(date.Year, date.Month, 1);
+            date2 = ((DateTime)date1).AddMonths(1).AddDays(-1);
+            dataAvail = true;
+
+            StateHasChanged();
+        }
+    }
+
+    private void Display()
+    {
+        bool status;
+        int projectId = 0;
+
+        reports = new List<Report>();
+        try
+        {
+            if (date1.HasValue && date2.HasValue)
+            {
+                reportInProgress = true;
+                if (projectCode == "All") projectId = 0;
+
+                DateTime? end = date2;
+                if (string.Equals(reportType, "Daily", StringComparison.OrdinalIgnoreCase))
+                {
+                    end = null;
+                }
+
+                status = Global.db.GetReports(projectId, reportStatus, reportType, reports, date1, end);
+                if (!status)
+                {
+                    statusMessage = "Error getting reports.";
+                }
+
+                reportInProgress = false;
+            }
+            dataAvail = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataAvail = true;
+            if (statusMessage != null)
+            {
+                statusMessage += "; " + ex.Message;
+            }
+            else
+            {
+                statusMessage = ex.Message;
+            }
+            reportInProgress = false;
+        }
+    }
+
+    private void OnSelectedItemChanged()
+    {
+
+    }
+
+    private void EditReport(Report p)
+    {
+        navman.NavigateTo($"/Reports/Edit/{p.Id}");
+    }
+
+    private void ShowReports()
+    {
+        if (projectCode != null)
+        {
+            Display();
+        }
+    }
+
+    private async void UpdateData()
+    {
+        updateInProgress = true;
+        await Task.Run(() => Global.dataAnalyzer.CalcRollingAvgStrength());
+        updateInProgress = false;
+
+        StateHasChanged();
+    }
+
+    // events
+    private string SelectedRowClassFunc(Report p, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(p))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    private void RowClicked(DataGridRowClickEventArgs<Report> args)
+    {
+        long i = args.MouseEventArgs.Detail;
+        if (i > 1)
+        { // double click
+            navman.NavigateTo($"/Reports/View/{args.Item.Id}");
+        }
+    }
+
+    private void SelectedItemsChanged(HashSet<Quotation> items)
+    {
+        int i = items.Count;
+    }
+
+    // quick filter - filter globally across multiple columns with the same input
+    private Func<Report, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(searchStr))
+            return true;
+
+        if (x.ReportType.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.FileName.Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ReportDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.ReleaseDate.ToString("yyyy-MM-dd").Contains(searchStr, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+
+    private async void SelectReport()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<ProjectSelect>("Select Project", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            Project p = (Project)result.Data;
+            projectCode = p.ProjectCode;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task<bool> ViewReport(Report r)
+    {
+        try
+        {
+            string longFilename = string.Format("{0}\\{1}\\{2}", r.ReportType, r.StartDate.ToString("yyyyMMdd"), r.FileName);
+            string src = Path.Combine(Global.reportStoragePath, longFilename);
+            string dest = Path.Combine(Global.reportPath, Guid.NewGuid() + ".pdf");
+            File.Copy(src, dest, true);
+
+            pdffile = Path.Combine("Reports", Path.GetFileName(dest));
+            reportFile = r.FileName;
+
+            await JS.InvokeVoidAsync("ScrollTo", "ReportView");
+            statusMessage = null;
+            return true;
+        }
+        catch(Exception ex)
+        {
+            pdffile = "";
+            reportFile = "";
+            statusMessage = "Error preparing report.";
+            Global.logger.LogMessageEx("Error", "Error preparing report for viewing: {0}\r\n", ex.Message, ex.StackTrace);
+            return false;
+        }
+    }
+
+    private async void ReleaseReport(Report r)
+    {
+        bool? result = await DialogService.ShowMessageBox("Release report",
+            $"Do you want to release Report {r.Id}?",
+            yesText: "Release!", cancelText: "Cancel");
+
+        if (result != null)
+        {
+            try
+            {
+                Global.db.ReleaseReport(r, false, user.Identity.Name);
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                dataAvail = true;
+                if (statusMessage != null)
+                {
+                    statusMessage += "; " + ex.Message;
+                }
+                else
+                {
+                    statusMessage = ex.Message;
+                }
+            }
+        }
+    }
+
+}
+

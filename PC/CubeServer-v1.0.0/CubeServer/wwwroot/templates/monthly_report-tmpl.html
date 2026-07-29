@@ -1,0 +1,115 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="monthly_report.css" rel="stylesheet">
+    <title>Monthly Report</title>
+    <meta name="description" content="Monthly Report">
+</head>
+
+<header>
+    <table id="top_header">
+        <tr>
+            <td>
+                <div id="title">Concrete Cube Testing Monthly Report ({{startDate}} - {{endDate}})</div>
+                <table id="left_header">
+                    <tr>
+                        <td>PROJECT ID:</td>
+                        <td>{{projectID}}</td>
+                    </tr>
+                    <tr>
+                        <td>PROJECT:</td>
+                        <td>{{projectName}}</td>
+                    </tr>
+                    <tr>
+                        <td>COMPANY:</td>
+                        <td>{{companyName}}</td>
+                    </tr>
+                    <tr>
+                        <td>ADDRESS:</td>
+                        <td>{{companyAddress}}</td>
+                    </tr>
+                    <tr>
+                        <td>ATTENTION:</td>
+                        <td>{{attnTo}}, {{attnEmail}}</td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table id="right_header">
+                    <tr>
+                        <td>
+                            <img src="tuvsud_logo.png" id="logo" />
+                        </td>
+                        <td>
+                            <b>TÜV SÜD PSB Pte. Ltd.</b><br />
+                            60 Tuas South Street 1<br />
+                            Singapore 639925<br />
+                            Business Reg No. 199002667R<br />
+                            <br />
+                            Tel: 6240 0217<br />
+                            Fax: 6240 0201
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <div style="padding-top:10px"></div>
+
+</header>
+
+<body>
+    <table id="center_header">
+        <tr>
+            <td>Supplier: {{supplier}}</td>
+            <td>Specification: {{specification}}</td>
+            <td>Testing Standard: {{testStandard}}</td>
+            <td>Grade: {{grade}}</td>
+        </tr>
+    </table>
+    <table width="100%" class="cubetable">
+        <tr>
+            <th>Set</th>
+            <th>Date Test</th>
+            <th>Lab Ref</th>
+            <th>Client Ref</th>
+            <th>Date Cast</th>
+            <th>Age At Test</th>
+            <th>Cube No.</th>
+            <th>Dim (mm)</th>
+            <th>Spec Strength (N/mm2)</th>
+            <th>Average Strength (N/mm2)</th>
+            <th>Rolling Avg Str (N/mm2)</th>
+            <th>Criteria<br /><br />B&ensp;A</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>2023-08-01</td>
+            <td>12345678</td>
+            <td>IWMF/EPC1/BD/0165/B</td>
+            <td>2023-08-01</td>
+            <td>30</td>
+            <td>3</td>
+            <td>150</td>
+            <td>50.0</td>
+            <td>53.5</td>
+            <td>57.8</td>
+            <td>P&ensp;P</td>
+        </tr>
+    </table>
+</body>
+<footer>
+    <div id="remarks">
+        <table>
+            <tr>
+                <td><b>Remarks:</b> </td>
+                <td>
+                    P - Comply With Specification, F - Does Not Comply With Specification, N - Not Applicable.<br />
+                    A - Above Spec Strength for 7-day Strength, B - Below Spec Strength for 7-day Strength. Unless otherwise specified, TüV SüD applies in-house.<br />
+                    Criteria of 7-day Strength should be at least 75% of the grade of concrete to assist clients to assess 7-days results.
+                </td>
+            </tr>
+        </table>
+    </div>
+</footer>
+</html>

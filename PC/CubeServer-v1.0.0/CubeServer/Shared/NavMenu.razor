@@ -1,0 +1,48 @@
+﻿<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+    <MudNavLink Href="Dashboard" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Dashboard">Dashboard</MudNavLink>
+    <MudNavLink Href="Quotations" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Article">Quotations</MudNavLink>
+    <MudNavLink Href="Projects" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.WorkOutline">Projects</MudNavLink>
+    <MudNavLink Href="CubeSets" Match="NavLinkMatch.Prefix" Icon="bi bi-collection">CubeSets</MudNavLink>
+    <MudNavLink Href="Batches" Match="NavLinkMatch.Prefix" Icon="bi bi-boxes">Batches</MudNavLink>
+    <MudNavLink Href="Cubes" Match="NavLinkMatch.Prefix" Icon="bi bi-box">Cubes</MudNavLink>
+    <MudNavLink Href="Suppliers" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Factory">Suppliers</MudNavLink>
+    @if (Util.CanView(user, reportRoles))
+    {
+        <MudNavGroup Title="Reports" Icon="@Icons.Material.Outlined.InsertChart">
+            <MudNavLink Href="GenerateReports" Match="NavLinkMatch.Prefix">Generate Reports</MudNavLink>
+            <MudNavLink Href="Reports" Match="NavLinkMatch.Prefix">Reports History</MudNavLink>
+        </MudNavGroup>
+        <MudNavLink Href="CostSummary" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Money">Cost Summary</MudNavLink>
+        @* <MudNavLink Href="Clients" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Group">Clients</MudNavLink> *@
+    }
+    @if (Util.CanView(user, editRoles))
+    {
+        <MudNavLink Href="Users" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Face">Users</MudNavLink>
+        <MudNavLink Href="Settings" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.Settings">Settings</MudNavLink>
+    }
+    @* @if (Util.CanView(user, debugRoles))
+    {
+        <MudNavLink Href="Debug" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Outlined.BugReport">Debug</MudNavLink>
+    } *@
+
+</MudNavMenu>
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    [Inject] private IDialogService DialogService { get; set; }
+
+    ClaimsPrincipal user;
+    string[] debugRoles = { "Administrator" };
+    string[] editRoles = { "Administrator" };
+    string[] viewRoles = { "Administrator" };
+    string[] reportRoles = { "Administrator", "Service" };
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+    }
+
+ }

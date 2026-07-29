@@ -1,0 +1,255 @@
+@page "/login"
+@layout BlankLayout
+
+@using Microsoft.Extensions.Configuration
+@using System.Text.RegularExpressions
+@using System.ComponentModel.DataAnnotations
+@inject IConfiguration cfg
+@inject AuthenticationStateProvider auth
+@inject ProtectedSessionStorage sessionStore
+@inject NavigationManager navMan
+
+<PageTitle>Cube Manager Login</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    @if (showOTP == 0)
+    {
+        <MudItem>
+            <MudPaper Class="pa-10" Width="450px" Height="330px">
+                <MudImage Src="images/cube_manager.png" Height="60" Elevation="0" Class="rounded-lg" />
+                <MudForm @ref="form">
+                    <MudTextField T="string" Label="Username" @ref="userid" />
+                    <MudTextField T="string" Label="Password" @ref="password" InputType="InputType.Password" />
+                </MudForm>
+                <MudStack Row="true" Class="mt-10">
+                    <MudButton EndIcon="@Icons.Material.Filled.Login"Variant="Variant.Filled" Color="Color.Primary" DisableElevation="true" OnClick="@(()=>ValidateLogin())">Login</MudButton>
+                    @if (@loginStatus != null)
+                    {
+                        <MudAlert Severity="@severity" Dense="true">@loginStatus</MudAlert>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    }
+    else if (showOTP == 1)
+    {
+        <MudItem>
+            <MudPaper Class="pa-10" Width="450px" Height="300px">
+                <MudImage Src="images/cube_manager.png" Height="60" Elevation="0" Class="rounded-lg" />
+                <MudForm @ref="form">
+                    <MudTextField T="string" Label="Enter OTP" @ref="otp" />
+                </MudForm>
+                <MudStack Row="true" Class="mt-10">
+                    <MudButton EndIcon="@Icons.Material.Filled.Login" Variant="Variant.Filled" Color="Color.Primary" DisableElevation="true" OnClick="@(()=>ValidateOTP())">Validate</MudButton>
+                    @if (@validateStatus != null)
+                    {
+                        <MudAlert Severity="@severity" Dense="true">@validateStatus</MudAlert>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    }
+    else if (showOTP == 2)
+    {
+        <MudItem>
+            <MudPaper Class="justify-center pa-10" Width="450px" Height="500px">
+                <MudImage Src="images/cube_manager.png" Height="60" Elevation="0" Class="rounded-lg" />
+                <MudText Typo="Typo.h6">First time Login:</MudText>
+                <MudText>Scan the QR Code below with your Microsoft Authenticator. Click Close when done.</MudText>
+                <MudContainer Class="d-flex justify-center">
+                <MudStack Class="mt-4">
+                    <MudImage Src="@qrcode" Width="200" Elevation="0" Class="rounded-lg" />
+                    <MudButton EndIcon="@Icons.Material.Filled.Close" Variant="Variant.Filled" Color="Color.Primary" DisableElevation="true" OnClick="@(()=>CloseQRCode())">Close</MudButton>
+                </MudStack>
+                </MudContainer>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@*@code {
+    bool success;
+    string[] errors = { };
+    MudTextField<string> pwField1;
+    MudForm form;
+
+    private IEnumerable<string> PasswordStrength(string pw)
+    {
+        if (string.IsNullOrWhiteSpace(pw))
+        {
+            yield return "Password is required!";
+            yield break;
+        }
+        if (pw.Length < 8)
+            yield return "Password must be at least of length 8";
+        if (!Regex.IsMatch(pw, @"[A-Z]"))
+            yield return "Password must contain at least one capital letter";
+        if (!Regex.IsMatch(pw, @"[a-z]"))
+            yield return "Password must contain at least one lowercase letter";
+        if (!Regex.IsMatch(pw, @"[0-9]"))
+            yield return "Password must contain at least one digit";
+    }
+
+    private string PasswordMatch(string arg)
+    {
+        if (pwField1.Value != arg)
+            return "Passwords don't match";
+        return null;
+    }
+
+}*@
+
+@code {
+    MudForm form;
+
+    LoginUser loginUser = new LoginUser();
+    string loginStatus;
+    Session session;
+    string[] errors = { };
+
+    int showOTP = 0; // 0:Login, 1:OTP, 2:First Login
+    MudTextField<string> otp;
+    string validateStatus;
+
+    string qrcode = "data:image/png;base64,";
+
+    MudTextField<string> userid;
+    MudTextField<string> password;
+
+    Severity severity;
+
+    protected async override void OnInitialized()
+    {
+        base.OnInitialized();
+
+        try
+        {
+            Global.db?.CreateDefaultUsers();
+        }
+        catch
+        {
+        }
+        showOTP = 0;
+        otp = null;
+
+        await AuthenticateSSOUser();
+    }
+
+    private async Task<bool> AuthenticateSSOUser()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        var authUser = authState.User;
+        if (authUser.Identity.IsAuthenticated)
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private async void ValidateLogin()
+    {
+        bool status;
+
+        loginUser.userId = userid.Text;
+        loginUser.password = password.Text;
+
+        CustomAuthenticationStateProvider cauth = (CustomAuthenticationStateProvider)auth;
+        if (cauth.IsDevelopmentAdminCredential(loginUser.userId, loginUser.password))
+        {
+            cauth.AuthenticateUser((Database)Global.db, loginUser.userId, loginUser.password);
+            severity = Severity.Success;
+            loginStatus = "Login OK";
+            await Task.Delay(1000);
+            navMan.NavigateTo("/");
+            return;
+        }
+
+        if (Global.app.par["Enable2FA"] > 0)
+        {
+            status = cauth.AuthenticateUserPassword((Database)Global.db, loginUser.userId, loginUser.password);
+            if (status)
+            {
+                severity = Severity.Success;
+                loginStatus = "Login OK";
+                await Task.Delay(1000);
+
+                if (cauth.HasSecret((Database)Global.db, loginUser.userId))
+                {
+                    showOTP = 1; // show OTP request
+                }
+                else
+                {
+                    showOTP = 2; // first time login
+
+                    qrcode = cauth.SetupQRCodeForOTP((Database)Global.db, loginUser.userId);
+                }
+            }
+            else
+            {
+                severity = Severity.Error;
+                loginStatus = "Login Failed!";
+            }
+        }
+        else
+        {
+            cauth.AuthenticateUser((Database)Global.db, loginUser.userId, loginUser.password);
+
+            if (cauth.curUserClaims != null && cauth.curUserClaims.Identity.IsAuthenticated)
+            {
+                session = Global.db.CreateSession(loginUser.userId, "");
+                severity = Severity.Success;
+                loginStatus = "Login OK";
+                await sessionStore.SetAsync("session", session);
+                await Task.Delay(1000);
+                navMan.NavigateTo("/");
+            }
+            else
+            {
+                session = null;
+                severity = Severity.Error;
+                loginStatus = "Login Failed!";
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async void ValidateOTP()
+    {
+        bool status;
+
+        loginUser.otp = otp.Text;
+
+        CustomAuthenticationStateProvider cauth = (CustomAuthenticationStateProvider)auth;
+        if (Global.app.par["Enable2FA"] > 0)
+        {
+            status = cauth.AuthenticateUserOTP((Database)Global.db, loginUser.userId, loginUser.otp);
+            if (status)
+            {
+                session = Global.db.CreateSession(loginUser.userId, "");
+                severity = Severity.Success;
+                validateStatus = "OTP Validated";
+                await sessionStore.SetAsync("session", session);
+                await Task.Delay(1000);
+                navMan.NavigateTo("/");
+            }
+            else
+            {
+                severity = Severity.Error;
+                validateStatus = "OTP Failed!";
+            }
+
+            StateHasChanged();
+        }
+        else
+        {
+            navMan.NavigateTo("/login", true);
+        }
+    }
+
+    private void CloseQRCode()
+    {
+        navMan.NavigateTo("/login", true);
+    }
+}

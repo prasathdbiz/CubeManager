@@ -1,0 +1,79 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudTable Items="@quotations" @ref="table" Dense="true" Hover="true" RowClassFunc="@SelectedRowClassFunc"
+            Filter="new Func<Quotation,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Select Quotation</MudText>
+                <MudSpacer />
+                <MudTextField DebounceInterval="500" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>Quotation No.</MudTh>
+                <MudTh>Subject</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="QuoNum">@context.QuoNum</MudTd>
+                <MudTd DataLabel="QuoSubject">@context.QuoSubject</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    List<Quotation> quotations = new List<Quotation>();
+    string filter;
+    string searchString1 = "";
+    Quotation selectedItem1;
+    int selectedRowNumber;
+    MudTable<Quotation> table;
+
+    protected override void OnInitialized()
+    {
+        int total;
+        Global.db.GetQuotations(quotations, "All", out total);
+    }
+
+    private bool FilterFunc1(Quotation quo) => FilterFunc(quo, searchString1);
+
+    private bool FilterFunc(Quotation quo, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (quo.QuoNum.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (quo.QuoSubject.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SelectedRowClassFunc(Quotation q, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(q))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(selectedItem1));
+    void Cancel() => MudDialog.Cancel();
+}
+

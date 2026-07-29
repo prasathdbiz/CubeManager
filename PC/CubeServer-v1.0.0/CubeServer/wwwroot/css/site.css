@@ -1,0 +1,41 @@
+﻿input[readonly] {
+    color: gray !important;
+    #background-color: azure !important;
+}
+
+textarea[readonly] {
+    color: gray !important;
+    #background-color: azure !important;
+}
+
+.mud-readonly {
+    color: gray !important;
+    #background-color: azure !important;
+}
+
+.validation-message {
+    color: red;
+}
+
+/* for table grids */
+.selected {
+    background-color: #1E88E5 !important;
+}
+
+    .selected > td {
+        color: white !important;
+    }
+
+        .selected > td .mud-input {
+            color: white !important;
+        }
+
+tr th {
+    background-color: #0D91A1;
+    color: white !important;
+    font-size: 1.5em;
+}
+
+tr:nth-child(even) {
+    background-color: aliceblue;
+}

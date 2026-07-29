@@ -1,0 +1,136 @@
+<html>
+<head>
+    <meta charset="utf-8">
+    <link href="statistical_report.css" rel="stylesheet">
+    <title>Monthly Statistical Report</title>
+    <meta name="description" content="Monthly Statistical Report">
+</head>
+
+<header>
+    <table id="top_header">
+        <tr>
+            <td>
+                <div id="title">Concrete Cube Statistical Analysis Report ({{startDate}} - {{endDate}})</div>
+                <table id="left_header">
+                    <tr>
+                        <td>PROJECT ID:</td>
+                        <td>{{projectID}}</td>
+                    </tr>
+                    <tr>
+                        <td>PROJECT:</td>
+                        <td>{{projectName}}</td>
+                    </tr>
+                    <tr>
+                        <td>COMPANY:</td>
+                        <td>{{companyName}}</td>
+                    </tr>
+                    <tr>
+                        <td>ADDRESS:</td>
+                        <td>{{companyAddress}}</td>
+                    </tr>
+                    <tr>
+                        <td>ATTENTION:</td>
+                        <td>{{attnTo}}, {{attnEmail}}</td>
+                    </tr>
+                </table>
+            </td>
+            <td>
+                <table id="right_header">
+                    <tr>
+                        <td>
+                            <img src="tuvsud_logo.png" id="logo" />
+                        </td>
+                        <td>
+                            <b>TÜV SÜD PSB Pte. Ltd.</b><br />
+                            60 Tuas South Street 1<br />
+                            Singapore 639925<br />
+                            Business Reg No. 199002667R<br />
+                            <br />
+                            Tel: 6240 0217<br />
+                            Fax: 6240 0201
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+    <div style="padding-top:10px"></div>
+
+</header>
+
+<body>
+    <table id="center_header">
+        <tr>
+            <td>Test Date: {{testDate}}</td>
+            <td>Supplier: {{supplier}}</td>
+            <td>Specification: {{specification}}</td>
+            <td>Testing Standard: {{testStandard}}</td>
+        </tr>
+    </table>
+    <table id="concrete">
+        <tr>
+            <td>Age: {{age}}</td>
+            <td>Grade: {{grade}}</td>
+        </tr>
+    </table>
+    <table width="100%" class="cubetable">
+        <tr>
+            <th rowspan="2">Set</th>
+            <th rowspan="2">Date Test</th>
+            <th rowspan="2">Date Cast</th>
+            <th rowspan="2">Lab Ref</th>
+            <th rowspan="2">Client Ref</th>
+            <th rowspan="2">Cube No.</th>
+            <th rowspan="2">Dim (mm)</th>
+            <th rowspan="2">Spec Strength (N/mm2)</th>
+            <th rowspan="2">Average Strength (N/mm2)</th>
+            <th rowspan="2">Rolling Avg Str (N/mm2)</th>
+            <th rowspan="2">Criteria<br /><br />B&ensp;A</th>
+            <th colspan="6">History</th>
+        </tr>
+        <tr>
+            <th colspan="3">Lab Ref</th>
+            <th colspan="3">Average Strength</th>
+        </tr>
+        <tr>
+            <td>1</td>
+            <td>2023-08-01</td>
+            <td>2023-08-01</td>
+            <td>12345678</td>
+            <td>IWMF/EPC1/BD/0165/B</td>
+            <td>3</td>
+            <td>150</td>
+            <td>50.0</td>
+            <td>53.5</td>
+            <td>57.8</td>
+            <td>P&ensp;P</td>
+            <td>
+                1234678
+            </td>
+            <td>
+                1234679
+            </td>
+            <td>
+                1234680
+            </td>
+            <td>53.6</td>
+            <td>60.5</td>
+            <td>63.7</td>
+        </tr>
+    </table>
+</body>
+<footer>
+    <div id="remarks">
+        <table>
+            <tr>
+                <td><b>Remarks:</b> </td>
+                <td>
+                    P - Comply With Specification, F - Does Not Comply With Specification, N - Not Applicable.<br />
+                    A - Above Spec Strength for 7-day Strength, B - Below Spec Strength for 7-day Strength. Unless otherwise specified, TüV SüD applies in-house.<br />
+                    Criteria of 7-day Strength should be at least 75% of the grade of concrete to assist clients to assess 7-days results.
+                </td>
+            </tr>
+        </table>
+    </div>
+</footer>
+</html>

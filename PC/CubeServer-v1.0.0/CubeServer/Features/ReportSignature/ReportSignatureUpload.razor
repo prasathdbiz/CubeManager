@@ -1,0 +1,119 @@
+@using Microsoft.AspNetCore.Components.Forms
+@inject IReportSignatureStore Store
+@inject IDialogService DialogService
+
+<MudPaper Class="pa-3" Style="max-width: 520px;">
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle2">Signature</MudText>
+
+        <MudFileUpload T="IBrowserFile" FilesChanged="OnFilesChanged">
+            <ButtonTemplate>
+                <MudButton HtmlTag="label"
+                           Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.UploadFile"
+                           for="@context"
+                           Disabled="@uploadInProgress">
+                    Upload Signature
+                </MudButton>
+            </ButtonTemplate>
+        </MudFileUpload>
+
+        @if (!string.IsNullOrWhiteSpace(validationMessage))
+        {
+            <MudAlert Severity="Severity.Warning" Dense="true">@validationMessage</MudAlert>
+        }
+
+        @if (uploadInProgress)
+        {
+            <MudProgressLinear Color="Color.Info" Indeterminate="true" />
+        }
+
+        @if (!string.IsNullOrWhiteSpace(signatureDataUrl))
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <img src="@signatureDataUrl" style="max-width: 180px; max-height: 80px; object-fit: contain;" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close"
+                               Color="Color.Error"
+                               Variant="Variant.Text"
+                               OnClick="DeleteSignature"
+                               Disabled="@uploadInProgress" />
+            </MudStack>
+        }
+    </MudStack>
+</MudPaper>
+
+@code {
+    [Parameter] public string UserId { get; set; }
+
+    string signatureDataUrl;
+    string validationMessage;
+    bool uploadInProgress;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (string.IsNullOrWhiteSpace(UserId)) return;
+
+        signatureDataUrl = await Store.GetSignatureDataUrlAsync(UserId);
+    }
+
+    async Task OnFilesChanged(IBrowserFile file)
+    {
+        validationMessage = null;
+
+        if (file == null)
+        {
+            return;
+        }
+
+        string ct = (file.ContentType ?? string.Empty).Trim().ToLowerInvariant();
+        bool ok = ct == "image/png" || ct == "image/jpeg" || ct == "image/jpg";
+        if (!ok)
+        {
+            validationMessage = "Invalid file type. Please upload a PNG or JPG image.";
+            return;
+        }
+
+        uploadInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            await Store.SaveAsync(UserId, file);
+            signatureDataUrl = await Store.GetSignatureDataUrlAsync(UserId);
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageBox("Upload failed", ex.Message);
+        }
+        finally
+        {
+            uploadInProgress = false;
+            StateHasChanged();
+        }
+    }
+
+    async Task DeleteSignature()
+    {
+        validationMessage = null;
+
+        uploadInProgress = true;
+        StateHasChanged();
+
+        try
+        {
+            await Store.DeleteAsync(UserId);
+            signatureDataUrl = null;
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageBox("Delete failed", ex.Message);
+        }
+        finally
+        {
+            uploadInProgress = false;
+            StateHasChanged();
+        }
+    }
+}
+

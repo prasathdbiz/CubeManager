@@ -1,0 +1,377 @@
+@page "/Projects/{action}/{projId:int}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Projects/@action</PageTitle>
+
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">@errMsg</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4 justify-content-center" MaxWidth="100%" Elevation="0">
+        <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudPaper Class="pa-4" MaxWidth="1000px">
+            <EditForm Model="@prj" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />
+                <MudGrid Spacing="0">
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@update" Label="Project ID" @bind-Value="prj.ProjectCode" For="@(() => prj.ProjectCode)"
+                                          Validation="@(new Func<string, string>(CheckProjectId))" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="1">
+                        @if (prj.Id > 0 && !update)
+                        {
+                            @if (prjIdUnique)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" Class="mt-6"/>
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Clear" Color="Color.Error" Class="mt-6" />
+                            }
+                        }
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        <MudTextField ReadOnly="true" Label="Current SCO No." @bind-Value="prj.CurSCONum"
+                                        For="@(() => prj.CurSCONum)" Adornment="Adornment.Start" 
+                                        AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="EditSCONum" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="4">
+                        @if (rdonly)
+                        {
+                            <MudTextField ReadOnly="true" Label="Quotation No." @bind-Value="prj.Quotation" For="@(() => prj.Quotation)" Class="me-4" />
+                        }
+                        else
+                        {
+                            <MudTextField ReadOnly="true" Label="Quotation No." @bind-Value="prj.Quotation" For="@(() => prj.Quotation)"
+                                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectQuotation" Class="me-4" />
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField ReadOnly="@rdonly" Label="Project Name" @bind-Value="prj.ProjectName" For="@(() => prj.ProjectName)" Lines="3"  Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Bill To Company" @bind-Value="prj.BillToCompany" For="@(() => prj.BillToCompany)"  Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                            <MudTextField ReadOnly="@rdonly" Label="Sold To Company" @bind-Value="prj.SoldToCompany" For="@(() => prj.SoldToCompany)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Bill To Address" @bind-Value="prj.BillToAddress" For="@(() => prj.BillToAddress)" 
+                            Lines="5" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Sold To Address" @bind-Value="prj.SoldToAddress" For="@(() => prj.SoldToAddress)"
+                            Lines="5"  Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudText Class="mt-5">Reports Required:</MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudCheckBox ReadOnly="@rdonly" @bind-Checked="@prj.DailyReport" Label="Daily" Class="mt-2"></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="2">
+                        <MudCheckBox ReadOnly="@rdonly" @bind-Checked="@prj.MonthlyReport" Label="Monthly" Class="mt-2"></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudCheckBox ReadOnly="@rdonly" @bind-Checked="@prj.StatisticalReport" Label="Statistical" Class="mt-2"></MudCheckBox>
+                    </MudItem>
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@rdonly" Label="Price / Cube" @bind-Value="prj.PricePerCube" For="@(() => prj.PricePerCube)" Format="C" Class="me-4" />
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Applicant Name" @bind-Value="prj.ApplicantName" For="@(() => prj.ApplicantName)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Designation" @bind-Value="prj.ApplicantDesignation" For="@(() => prj.ApplicantDesignation)" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Email Address" @bind-Value="emailAddr" For="@(() => emailAddr)"
+                            Lines="3" HelperText="Place each email on a separate line" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="9" md="6">
+                        <MudTextField ReadOnly="@rdonly" Label="Email CC" @bind-Value="emailCC" For="@(() => emailCC)"
+                            Lines="3" HelperText="Place each email on a separate line" Class="me-4" />
+                    </MudItem>
+                    <MudItem xs="12" Class="mt-3"></MudItem>
+                    @if (@update)
+                    {
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Created" @bind-Value="prj.CreateDate" For="@(() => prj.CreateDate)" Format="yyyy-MM-dd HH:mm:ss"  Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Create User" @bind-Value="prj.CreateUser" For="@(() => prj.CreateUser)"  Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="prj.LastUpdate" For="@(() => prj.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss"  Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update User" @bind-Value="prj.LastUpdateUser" For="@(() => prj.LastUpdateUser)"  Class="me-4" />
+                        </MudItem>
+                    }
+
+                    @if (Util.CanEdit(user, editRoles))
+                    {
+                        @if (!@rdonly)
+                        {
+                            <MudItem xs="12">
+                                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">
+                                    @if (@update)
+                                    {
+                                        <span>Update</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Add</span>
+                                    }
+                                </MudButton>
+                            </MudItem>
+                        }
+                        else
+                        {
+                            <MudItem xs="12">
+                                <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5" OnClick="EditProject">
+                                    Edit
+                                </MudButton>
+                            </MudItem>
+                        }
+                    }
+
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+
+        <BarcodeAllocations projectId="prj.Id" Refresh="@(() => {})"/>
+        <CubeSetList projectId="prj.Id" Refresh="@(() => {})" />
+        </MudContainer>
+    </MudPaper>
+}
+
+@code {
+    [Parameter]
+    public int projId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Project prj = null;
+    bool rdonly;
+    bool update = true;
+    string prjIdIcon;
+    bool prjIdUnique;
+
+    string emailAddr = "";
+    string emailCC = "";
+
+    string errMsg;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        rdonly = (action == "View");
+
+        if ((action == "Edit" || action == "New") && 
+            !Util.CanEdit(user, editRoles))
+        {
+            errMsg = "User is not authorized.";
+            return;
+        }
+        try
+        {
+            if (action == "New")
+            {
+                prj = new Project();
+                update = false;
+            }
+            else
+            {
+                prj = Global.db.GetProject(projId);
+                if (prj == null) return;
+
+                emailAddr = Util.StringListToLines(prj.EmailAddr);
+                emailCC = Util.StringListToLines(prj.EmailCC);
+            }
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsg != null)
+            {
+                errMsg += "; " + ex.Message;
+            }
+            else
+            {
+                errMsg = ex.Message;
+            }
+        }
+    }
+
+    private string CheckProjectId(string id)
+    {
+        try
+        {
+            bool found = Global.db.HasProjectId(id);
+            prjIdIcon = found ? "Icons.Material.Filled.Clear" : "Icons.Material.Filled.Check";
+            prjIdUnique = !found;
+            StateHasChanged();
+
+            return found ? "Project ID not unique" : null;
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsg != null)
+            {
+                errMsg += "; " + ex.Message;
+            }
+            else
+            {
+                errMsg = ex.Message;
+            }
+            return null;
+        }
+    }
+
+    private void OnValidSubmit(EditContext context)
+    {
+        Project p = (Project)context.Model;
+        p.EmailAddr = Util.LinesToStringList(emailAddr);
+        p.EmailCC = Util.LinesToStringList(emailCC);
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateProject(p, user.Identity.Name);
+            }
+            else
+            {
+                success = Global.db.InsertProject(p, user.Identity.Name);
+            }
+
+            if (success)
+            {
+                StateHasChanged();
+
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Project {p.Id} has been updated successfully.");
+                DialogService.Show<InfoMsgBox>("Update Project", par);
+
+                navman.NavigateTo($"/Projects/View/{p.Id}", true);
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Project {p.Id}.");
+                DialogService.Show<InfoMsgBox>("Update Project", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            if (errMsg != null)
+            {
+                errMsg += "; " + ex.Message;
+            }
+            else
+            {
+                errMsg = ex.Message;
+            }
+        }
+    }
+
+    private async void SelectQuotation()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var dialog = await DialogService.ShowAsync<QuotationSelect>("Select Quotation", options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            Quotation q = (Quotation)result.Data;
+            prj.Quotation = q.QuoNum;
+
+            StateHasChanged();
+        }
+    }
+
+    private async void EditSCONum()
+    {
+        var options = new DialogOptions { CloseOnEscapeKey = true, NoHeader = true };
+        var param = new DialogParameters<SCONumEdit>();
+        param.Add(x => x.newSCONum, 0);
+        param.Add(x => x.projectId, prj.Id);
+        param.Add(x => x.readOnly, rdonly);
+        var dialog = await DialogService.ShowAsync<SCONumEdit>("SCO Numbers", param, options);
+        var result = await dialog.Result;
+
+        if (result.Data != null)
+        {
+            int scoNum = (int)result.Data;
+
+            SCONumber sco = new SCONumber()
+            {
+                ScoNumber = scoNum,
+                ProjectId = prj.Id,
+                LastUpdateUser = user.Identity.Name
+            };
+            try
+            {
+                bool status = Global.db.InsertSCONum(prj, sco, user.Identity.Name);
+                if (status)
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"New SCO Number {scoNum} has been updated to the project successfully.");
+                    await DialogService.ShowAsync<InfoMsgBox>("Update SCO Number for Project", par);
+                }
+                else
+                {
+                    var par = new DialogParameters<InfoMsgBox>();
+                    par.Add(x => x.ContentText, $"Error updating SCO Number {scoNum} to the project. This SCO number may already exist.");
+                    await DialogService.ShowAsync<InfoMsgBox>("Update SCO Number for Project", par);
+                }
+
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                dataOk = false;
+                if (errMsg != null)
+                {
+                    errMsg += "; " + ex.Message;
+                }
+                else
+                {
+                    errMsg = ex.Message;
+                }
+            }
+        }
+    }
+
+    private void EditProject()
+    {
+        navman.NavigateTo($"/Projects/Edit/{prj.Id}", true);
+    }
+
+}

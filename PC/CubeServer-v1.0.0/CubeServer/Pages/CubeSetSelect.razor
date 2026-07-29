@@ -1,0 +1,80 @@
+﻿<MudDialog>
+    <DialogContent>
+        <MudTable Items="@CubeSets" @ref="table" Dense="true" Hover="true" RowClassFunc="@SelectedRowClassFunc"
+            Filter="new Func<CubeSet,bool>(FilterFunc1)" @bind-SelectedItem="selectedItem1">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Select CubeSet</MudText>
+                <MudSpacer />
+                <MudTextField DebounceInterval="500" @bind-Value="searchString1" Placeholder="Search" Adornment="Adornment.Start" 
+                    AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <HeaderContent>
+                <MudTh>CubeSet ID</MudTh>
+                <MudTh>Project ID</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="CubeSet ID">@context.Id</MudTd>
+                <MudTd DataLabel="Project ID">@context.ProjectCode</MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager />
+            </PagerContent>
+        </MudTable>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton Color="Color.Primary" OnClick="Submit">Ok</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] MudDialogInstance MudDialog { get; set; }
+
+    List<CubeSet> CubeSets = new List<CubeSet>();
+    string filter;
+    string searchString1 = "";
+    CubeSet selectedItem1;
+    int selectedRowNumber;
+    MudTable<CubeSet> table;
+
+    protected override void OnInitialized()
+    {
+        int total;
+        Global.db.GetCubeSets(CubeSets, out total);
+    }
+
+    private bool FilterFunc1(CubeSet quo) => FilterFunc(quo, searchString1);
+
+    private bool FilterFunc(CubeSet cs, string searchString)
+    {
+        if (string.IsNullOrWhiteSpace(searchString))
+            return true;
+        if (cs.Id.ToString().Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        if (cs.ProjectCode.Contains(searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+        return false;
+    }
+
+    private string SelectedRowClassFunc(CubeSet q, int rowNumber)
+    {
+        if (selectedRowNumber == rowNumber)
+        {
+            selectedRowNumber = -1;
+            return string.Empty;
+        }
+        else if (table.SelectedItem != null && table.SelectedItem.Equals(q))
+        {
+            selectedRowNumber = rowNumber;
+            return "selected";
+        }
+        else
+        {
+            return string.Empty;
+        }
+    }
+
+    void Submit() => MudDialog.Close(DialogResult.Ok(selectedItem1));
+    void Cancel() => MudDialog.Cancel();
+}
+

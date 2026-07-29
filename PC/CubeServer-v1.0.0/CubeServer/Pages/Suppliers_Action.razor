@@ -1,0 +1,208 @@
+@page "/Suppliers/{action}/{supplierId}"
+@page "/Suppliers/{action}"
+
+@attribute [Authorize(Roles = "Administrator, DataEntry, Service")]
+
+@using System.ComponentModel.DataAnnotations
+@inject IJSRuntime JS
+@inject NavigationManager navman
+@inject IDialogService DialogService
+
+<PageTitle>Suppliers/@action</PageTitle>
+
+@if (!dataOk)
+{
+    <MudAlert Severity="Severity.Error">Supplier does not exist.</MudAlert>
+}
+else
+{
+    <MudGrid Justify="Justify.Center" xs="12" sm="7">
+        <MudPaper Class="pa-4" MaxWidth="@Global.contentMaxWidth">
+            <EditForm Model="@supplier" OnValidSubmit="OnValidSubmit">
+                <DataAnnotationsValidator />                
+                <MudGrid Spacing="0">
+                    <MudItem xs="12" md="3">
+                        <MudTextField ReadOnly="@update" Label="Supplier ID" @bind-Value="supplier.Id" For="@(() => supplier.Id)" 
+                            Validation="@(new Func<string, string>(CheckSupplierId))" />
+                    </MudItem>
+                    <MudItem xs="12" md="1">
+                        @if (supplier.Id.Length > 0 && !update)
+                        {
+                            @if (suppIdUnique)
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Check" Color="Color.Success" Class="mt-6" />
+                            }
+                            else
+                            {
+                                <MudIcon Icon="@Icons.Material.Filled.Clear" Color="Color.Error" Class="mt-6" />
+                            }
+                        }
+                    </MudItem>
+                    <MudItem xs="12">
+                        <MudTextField ReadOnly="@rdonly" Label="Company Name" @bind-Value="supplier.Name" For="@(() => supplier.Name)" Class="me-4" />
+                    </MudItem>
+                    @if (@update)
+                    {
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Created" @bind-Value="supplier.CreateDate" For="@(() => supplier.CreateDate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Create User" @bind-Value="supplier.CreateUser" For="@(() => supplier.CreateUser)" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update" @bind-Value="supplier.LastUpdate" For="@(() => supplier.LastUpdate)" Format="yyyy-MM-dd HH:mm:ss" Class="me-4" />
+                        </MudItem>
+                        <MudItem xs="6" md="3">
+                            <MudTextField ReadOnly Label="Last Update User" @bind-Value="supplier.LastUpdateUser" For="@(() => supplier.LastUpdateUser)" Class="me-4" />
+                        </MudItem>
+                    }
+
+                @if (!@rdonly)
+                {
+                    <MudItem xs="12">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto mt-5">
+                            @if (@update)
+                            {
+                                <span>Update</span>
+                            }
+                            else
+                            {
+                                <span>Add</span>
+                            }
+                        </MudButton>
+                        <ValidationSummary />
+                    </MudItem>
+                }
+                </MudGrid>
+            </EditForm>
+        </MudPaper>
+    </MudGrid>
+}
+
+@code {
+    [Parameter]
+    public string supplierId { get; set; }
+    [Parameter]
+    public string action { get; set; }
+
+    [CascadingParameter]
+    private Task<AuthenticationState> authenticationStateTask { get; set; }
+
+    bool success;
+    string[] errors = { };
+
+    ClaimsPrincipal user;
+    string[] editRoles = { "Administrator", "DataEntry" };
+
+    bool dataOk;
+    Supplier supplier = null;
+    bool rdonly;
+    bool update = true;
+    bool suppIdUnique;
+
+    protected override async void OnInitialized()
+    {
+        user = (await authenticationStateTask).User;
+
+        rdonly = (action == "View");
+        try
+        {
+            if (action == "New")
+            {
+                supplier = new Supplier();
+                update = false;
+            }
+            else
+            {
+                supplier = Global.db.GetSupplier(supplierId);
+                if (supplier == null) return;
+            }
+
+            dataOk = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+
+    private string CheckSupplierId(string id)
+    {
+        bool found = true;
+        try
+        {
+            id = id.Trim();
+            if (id.Length > 0)
+            {
+                found = Global.db.HasSupplierId(id);
+            }
+
+            suppIdUnique = !found;
+
+            StateHasChanged();
+
+            return found ? "Supplier ID not unique" : null;
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+            return null;
+        }
+    }
+
+    private void OnValidSubmit(EditContext context)
+    {
+        Supplier s = (Supplier)context.Model;
+        try
+        {
+            if (update)
+            {
+                success = Global.db.UpdateSupplier(s, user.Identity.Name);
+            }
+            else
+            {
+                success = Global.db.InsertSupplier(s, user.Identity.Name);
+            }
+
+            if (success)
+            {
+                StateHasChanged();
+
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Supplier {s.Id} has been updated successfully.");
+                DialogService.Show<InfoMsgBox>("Update Supplier", par);
+
+                navman.NavigateTo($"/Suppliers/View/{s.Id}", true);
+            }
+            else
+            {
+                var par = new DialogParameters<InfoMsgBox>();
+                par.Add(x => x.ContentText, $"Error updating Supplier {s.Id}.");
+                DialogService.Show<InfoMsgBox>("Update Supplier", par);
+            }
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+
+    private void Submit()
+    {
+        StateHasChanged();
+        try
+        {
+            Supplier s = supplier;
+            success = Global.db.InsertSupplier(s, user.Identity.Name);
+        }
+        catch (Exception ex)
+        {
+            dataOk = false;
+            StateHasChanged();
+        }
+    }
+}
