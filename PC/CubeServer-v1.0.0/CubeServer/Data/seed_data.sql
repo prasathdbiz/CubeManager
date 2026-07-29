@@ -17,7 +17,7 @@ IF NOT EXISTS (SELECT 1 FROM ConcreteGrades)
 INSERT INTO ConcreteGrades (Grade) VALUES (20), (25), (30), (35), (40), (45), (50);
 
 IF NOT EXISTS (SELECT 1 FROM TestCriteria)
-INSERT INTO TestCriteria (Criterion) VALUES ('A'), ('B');
+INSERT INTO TestCriteria (Criterion) VALUES ('A'), ('B'), ('C'), ('Identify Testing');
 
 IF NOT EXISTS (SELECT 1 FROM ConcreteTypes)
 INSERT INTO ConcreteTypes (Type) VALUES ('Normal'), ('High Strength'), ('Lightweight'), ('Self Compacting');
