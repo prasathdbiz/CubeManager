@@ -31,11 +31,11 @@ GO
 -- ============ Users ============
 -- Passwords hashed with SHA256({128,99,privilege} + ASCII(password)), base64 (matches Util.EncryptPassword)
 IF NOT EXISTS (SELECT 1 FROM Users WHERE UserId = 'admin')
-INSERT INTO Users (UserId, UserName, WindowsID, Privilege, Password, Enabled, Tel, Mobile, Email) VALUES
-    ('admin',     'System Administrator', '',  100, 'Jc6u3XG4ap4AyTJNe0eipGER2lCgFujskQ472nJy8ow=', 1, '65001000', '91234567', 'admin@cubemgr.local'),
-    ('dataentry', 'Data Entry User',       '',  20,  'b2AdJRDxnnwKFiiVnPvotBcsIBCw854eH8TWHkbKtWY=', 1, '65001001', '91234568', 'dataentry@cubemgr.local'),
-    ('custsvc',   'Customer Service User', '',  40,  'Zj61xMYoyMGBr9cH2kTxpQUSknn0CKDLcubx/UZMr7U=', 1, '65001002', '91234569', 'custsvc@cubemgr.local'),
-    ('webapi',    'Web API Service User',  '',  50,  'IQdFckF2Nj4nqgiCiqiZRDsApDeo2t2/HTMOixIx+Fg=', 1, '65001003', '91234570', 'webapi@cubemgr.local');
+INSERT INTO Users (UserId, UserName, WindowsID, Privilege, Password, Enabled, Tel, Mobile, Email, LastUpdate) VALUES
+    ('admin',     'System Administrator', '',  100, 'Jc6u3XG4ap4AyTJNe0eipGER2lCgFujskQ472nJy8ow=', 1, '65001000', '91234567', 'admin@cubemgr.local', GETDATE()),
+    ('dataentry', 'Data Entry User',       '',  20,  'b2AdJRDxnnwKFiiVnPvotBcsIBCw854eH8TWHkbKtWY=', 1, '65001001', '91234568', 'dataentry@cubemgr.local', GETDATE()),
+    ('custsvc',   'Customer Service User', '',  40,  'Zj61xMYoyMGBr9cH2kTxpQUSknn0CKDLcubx/UZMr7U=', 1, '65001002', '91234569', 'custsvc@cubemgr.local', GETDATE()),
+    ('webapi',    'Web API Service User',  '',  50,  'IQdFckF2Nj4nqgiCiqiZRDsApDeo2t2/HTMOixIx+Fg=', 1, '65001003', '91234570', 'webapi@cubemgr.local', GETDATE());
 -- Login credentials (plaintext, for testing only):
 --   admin / Admin@123          (Administrator)
 --   dataentry / DataEntry@123  (DataEntry)
@@ -169,6 +169,36 @@ INSERT INTO BarcodeAllocation (ProjectId, Qty, BarcodeStart, BarcodeEnd, CreateU
     (@ProjId1, 8, 20000001, 20000008, 'admin', GETDATE(), 'admin', GETDATE()),
     (@ProjId2, 8, 20000009, 20000016, 'admin', GETDATE(), 'admin', GETDATE()),
     (@ProjId3, 8, 20000017, 20000024, 'admin', GETDATE(), 'admin', GETDATE());
+
+-- Reports (Report History page)
+INSERT INTO Reports (ProjectId, ReportType, FileName, ReportDate, StartDate, EndDate, EmailTo, EmailCC, Released, ReleaseUser, ReleaseDate) VALUES
+    (@ProjId1, 'Daily',       'MarinaBayTower_Daily_' + FORMAT(DATEADD(day,-5,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-5,GETDATE()), DATEADD(day,-5,GETDATE()), DATEADD(day,-5,GETDATE()),
+        'wm.tan@marinabay.example', 'sarah.lim@orchardheights.example', 2, 'admin', DATEADD(day,-5,GETDATE())),
+    (@ProjId1, 'Daily',       'MarinaBayTower_Daily_' + FORMAT(DATEADD(day,-1,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-1,GETDATE()), DATEADD(day,-1,GETDATE()), DATEADD(day,-1,GETDATE()),
+        'wm.tan@marinabay.example', 'sarah.lim@orchardheights.example', 0, NULL, NULL),
+    (@ProjId1, 'Monthly',     'MarinaBayTower_Monthly_' + FORMAT(DATEADD(day,-20,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-20,GETDATE()), DATEADD(day,-DAY(GETDATE())-19,GETDATE()), DATEADD(day,-DAY(GETDATE()),GETDATE()),
+        'wm.tan@marinabay.example', 'sarah.lim@orchardheights.example', 3, 'admin', DATEADD(day,-19,GETDATE())),
+    (@ProjId2, 'Daily',       'OrchardHeights_Daily_' + FORMAT(DATEADD(day,-3,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-3,GETDATE()), DATEADD(day,-3,GETDATE()), DATEADD(day,-3,GETDATE()),
+        'sarah.lim@orchardheights.example', '', 2, 'admin', DATEADD(day,-3,GETDATE())),
+    (@ProjId2, 'Daily',       'OrchardHeights_Daily_' + FORMAT(GETDATE(),'yyyyMMdd') + '.pdf',
+        GETDATE(), GETDATE(), GETDATE(),
+        'sarah.lim@orchardheights.example', '', 0, NULL, NULL),
+    (@ProjId2, 'Statistical', 'OrchardHeights_Statistical_' + FORMAT(DATEADD(day,-10,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-10,GETDATE()), DATEADD(day,-40,GETDATE()), DATEADD(day,-10,GETDATE()),
+        'sarah.lim@orchardheights.example', '', 1, 'admin', DATEADD(day,-9,GETDATE())),
+    (@ProjId3, 'Monthly',     'JurongWarehouse_Monthly_' + FORMAT(DATEADD(day,-25,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-25,GETDATE()), DATEADD(day,-55,GETDATE()), DATEADD(day,-25,GETDATE()),
+        'ahmad.rizal@jurongie.example', '', 3, 'admin', DATEADD(day,-24,GETDATE())),
+    (@ProjId3, 'Monthly',     'JurongWarehouse_Monthly_' + FORMAT(DATEADD(day,-1,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-1,GETDATE()), DATEADD(day,-DAY(GETDATE())-30,GETDATE()), DATEADD(day,-DAY(GETDATE()),GETDATE()),
+        'ahmad.rizal@jurongie.example', '', 0, NULL, NULL),
+    (@ProjId3, 'Daily',       'JurongWarehouse_Daily_' + FORMAT(DATEADD(day,-2,GETDATE()),'yyyyMMdd') + '.pdf',
+        DATEADD(day,-2,GETDATE()), DATEADD(day,-2,GETDATE()), DATEADD(day,-2,GETDATE()),
+        'ahmad.rizal@jurongie.example', '', 2, 'admin', DATEADD(day,-2,GETDATE()));
 
 -- ScheduledTasks (background jobs the app expects to find)
 IF NOT EXISTS (SELECT 1 FROM ScheduledTasks)
