@@ -394,7 +394,7 @@ namespace CubeServer.Data
             Util.CopyFileIfNewer(imgFileSrc, imgFile);
 
             // print to pdf
-            PrintResult presult = await printer.Print(content, $"-u {Global.htmlPath}");
+            PrintResult presult = await printer.Print(content, $"-u \"{Global.htmlPath}\"");
             if (presult != null && !presult.HasError)
             {
                 string dest = Path.Combine(Global.reportPath, fn + ".pdf");
@@ -619,7 +619,7 @@ namespace CubeServer.Data
             Util.CopyFileIfNewer(imgFileSrc, imgFile);
 
             // print to pdf
-            PrintResult presult = await printer.Print(content, $"-u {Global.htmlPath}");
+            PrintResult presult = await printer.Print(content, $"-u \"{Global.htmlPath}\"");
             if (presult != null && !presult.HasError)
             {
                 string dest = Path.Combine(Global.reportPath, fn + ".pdf");
@@ -835,7 +835,7 @@ namespace CubeServer.Data
                 string imgFileSrc2 = Path.Combine(Global.assyPath, "ScribanReports/footer.png");
                 Util.CopyFileIfNewer(imgFileSrc2, imgFile2);
 
-                PrintResult presult = await printer.Print(content, $"-u {Global.htmlPath}");
+                PrintResult presult = await printer.Print(content, $"-u \"{Global.htmlPath}\"");
                 if (presult != null && presult.Bytes.Length > 0 &&
                     (!presult.HasError || presult.ExitCode == 0))
                 {
@@ -937,7 +937,7 @@ namespace CubeServer.Data
             string imgFileSrc = Path.Combine(Global.assyPath, "ScribanReports/tuvsud_logo.png");
             Util.CopyFileIfNewer(imgFileSrc, imgFile);
 
-            PrintResult presult = await printer.Print(content, $"-u {Global.htmlPath}");
+            PrintResult presult = await printer.Print(content, $"-u \"{Global.htmlPath}\"");
             if (presult != null && !presult.HasError)
             {
                 string dest = Path.Combine(Global.reportPath, fn + ".pdf");
