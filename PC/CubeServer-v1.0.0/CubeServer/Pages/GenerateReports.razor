@@ -41,15 +41,36 @@ else
                                DateFormat="yyyy-MM-dd" />
                 </MudItem>
             }
-            @if (testAgeRequired)
-            {
-                <MudItem xs="12" md="3">
-                    <MudTextField Label="Test Age" @bind-Value="testAge" For="@(() => testAge)" />
-                </MudItem>
-            }
+            <MudItem xs="12" md="3">
+                <MudTextField Label="Test Age" @bind-Value="testAge" For="@(() => testAge)" />
+            </MudItem>
             <MudItem xs="12" md="3">
                 <MudTextField ReadOnly="true" Label="Project ID" Placeholder="Select Project" @bind-Value="projectCode" For="@(() => projectCode)"
                               Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.MoreVert" OnAdornmentClick="SelectReport" />
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int?" Label="Grade" Placeholder="All Grades" AnchorOrigin="Origin.BottomCenter" @bind-Value="filterGrade" Clearable="true">
+                    @foreach (int g in grades)
+                    {
+                        <MudSelectItem Value="@((int?)g)">@g</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="string" Label="Supplier" Placeholder="All Suppliers" AnchorOrigin="Origin.BottomCenter" @bind-Value="filterSupplierId" Clearable="true">
+                    @foreach (Supplier s in suppliers)
+                    {
+                        <MudSelectItem Value="@(s.Id)">@s.Name</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="double?" Label="Dimension" Placeholder="All Dimensions" AnchorOrigin="Origin.BottomCenter" @bind-Value="filterDimension" Clearable="true">
+                    @foreach (double d in dimensions)
+                    {
+                        <MudSelectItem Value="@((double?)d)">@d mm</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
             <MudItem xs="12" md="3">
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" StartIcon="@Icons.Material.Outlined.RemoveRedEye"
@@ -121,8 +142,7 @@ else
     string statusMessage;
     int totalReports;
     string searchStr;
-    int testAge = 28;
-    bool testAgeRequired = false;
+    int testAge = 0;
 
     string reportType = "";
     DateTime? date1, date2;
@@ -133,6 +153,13 @@ else
     string projectCode;
     bool reportInProgress = false;
     bool updateInProgress = false;
+
+    int? filterGrade;
+    string filterSupplierId;
+    double? filterDimension;
+    List<int> grades = new List<int>();
+    List<Supplier> suppliers = new List<Supplier>();
+    List<double> dimensions = new List<double> { 50, 100, 150 };
 
     int curPage { get; set; } = 1;
     int totalPages { get; set; } = 1;
@@ -146,6 +173,9 @@ else
     protected override async void OnInitialized()
     {
         user = (await authenticationStateTask).User;
+
+        int total;
+        Global.db.GetSuppliers(suppliers, out total);
     }
 
     protected override void OnParametersSet()
@@ -176,15 +206,20 @@ else
             if (reportType == "Daily" && date1.HasValue)
             {
                 reportInProgress = true;
-                reportResult = await Global.reportGenerator.GenerateDailyReport(projectId, 
-                    (DateTime)date1, user.Identity.Name);
+                reportResult = await Global.reportGenerator.GenerateDailyReport(projectId,
+                    (DateTime)date1, user.Identity.Name,
+                    filterGrade, filterSupplierId, filterDimension, testAge);
                 if (reportResult.pdffile != null)
                 {
                     reportState = new ReportState()
                         {
                             project = p,
                             reportType = reportType,
-                            date1 = date1
+                            date1 = date1,
+                            testAge = testAge,
+                            filterGrade = filterGrade,
+                            filterSupplierId = filterSupplierId,
+                            filterDimension = filterDimension
                         };
 
                     pdffile = Path.Combine("Reports", reportResult.pdffile);
@@ -195,7 +230,9 @@ else
                 else
                 {
                     reportState = null;
-                    statusMessage = "Error generating report.";
+                    statusMessage = reportResult.resultCnt == 0
+                        ? "No cube test data found matching the selected filters."
+                        : "Error generating report.";
                 }
                 reportInProgress = false;
             }
@@ -206,7 +243,8 @@ else
                 if (status)
                 {
                     reportResult = await Global.reportGenerator.GenerateMonthlyReport(projectId,
-                        (DateTime)date1, (DateTime)date2, user.Identity.Name);
+                        (DateTime)date1, (DateTime)date2, user.Identity.Name,
+                        filterGrade, filterSupplierId, filterDimension, testAge);
                     if (reportResult.pdffile != null)
                     {
                         reportState = new ReportState()
@@ -214,7 +252,11 @@ else
                                 project = p,
                                 reportType = reportType,
                                 date1 = date1,
-                                date2 = date2
+                                date2 = date2,
+                                testAge = testAge,
+                                filterGrade = filterGrade,
+                                filterSupplierId = filterSupplierId,
+                                filterDimension = filterDimension
                             };
 
 
@@ -226,7 +268,9 @@ else
                     else
                     {
                         reportState = null;
-                        statusMessage = "Error generating report.";
+                        statusMessage = reportResult.resultCnt == 0
+                            ? "No cube test data found matching the selected filters."
+                            : "Error generating report.";
                     }
                 }
                 else
@@ -243,7 +287,8 @@ else
                 if (status)
                 {
                     reportResult = await Global.reportGenerator.GenerateStatisticalReport(projectId,
-                        (DateTime)date1, (DateTime)date2, testAge, user.Identity.Name);
+                        (DateTime)date1, (DateTime)date2, testAge, user.Identity.Name,
+                        filterGrade, filterSupplierId, filterDimension);
                     if (reportResult.pdffile != null)
                     {
                         reportState = new ReportState()
@@ -252,7 +297,10 @@ else
                                 reportType = reportType,
                                 date1 = date1,
                                 date2 = date2,
-                                testAge = testAge
+                                testAge = testAge,
+                                filterGrade = filterGrade,
+                                filterSupplierId = filterSupplierId,
+                                filterDimension = filterDimension
                             };
 
                         pdffile = Path.Combine("Reports", reportResult.pdffile);
@@ -263,7 +311,9 @@ else
                     else
                     {
                         reportState = null;
-                        statusMessage = "Error generating report.";
+                        statusMessage = reportResult.resultCnt == 0
+                            ? "No cube test data found matching the selected filters."
+                            : "Error generating report.";
                     }
                 }
                 else
@@ -582,6 +632,11 @@ else
             Project p = (Project)result.Data;
             projectCode = p.ProjectCode;
 
+            filterGrade = null;
+            filterSupplierId = null;
+            filterDimension = null;
+            Global.db.GetDistinctConcreteGrades(p.Id, grades);
+
             StateHasChanged();
         }
     }
@@ -593,21 +648,18 @@ else
             reportType = selected;
             date1Str = "Date";
             date2required = false;
-            testAgeRequired = false;
         }
         else if (selected == "Monthly")
         {
             reportType = selected;
             date1Str = "Start Date";
             date2required = true;
-            testAgeRequired = false;
         }
         else if (selected == "Statistical")
         {
             reportType = selected;
             date1Str = "Start Date";
             date2required = true;
-            testAgeRequired = true;
         }
 
         StateHasChanged();

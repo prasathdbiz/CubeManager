@@ -2741,6 +2741,36 @@ namespace CubeServer.Data
             }
         }
 
+        public bool GetDistinctConcreteGrades(int projectId, List<int> grades)
+        {
+            string sql;
+            bool status = false;
+            grades.Clear();
+
+            using (SqlConnection conn = new SqlConnection(connStr))
+            {
+                conn.Open();
+
+                sql = "SELECT DISTINCT ConcreteGrade FROM CubeSets WHERE ProjectId=@ProjectId ORDER BY ConcreteGrade;";
+
+                using (SqlCommand cmd = new SqlCommand(sql, conn))
+                {
+                    cmd.Parameters.AddWithValue("ProjectId", projectId);
+
+                    using (SqlDataReader reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            grades.Add(reader.SafeGetInt(0));
+                        }
+                    }
+                    status = true;
+                }
+
+                return status;
+            }
+        }
+
         public bool GetSuppliersForProject(int projectId, List<Supplier> supplierList)
         {
             string sql;

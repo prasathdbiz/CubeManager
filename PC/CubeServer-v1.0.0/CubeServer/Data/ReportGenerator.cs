@@ -30,6 +30,9 @@ namespace CubeServer.Data
         public DateTime? date1;
         public DateTime? date2;
         public int testAge;
+        public int? filterGrade;
+        public string filterSupplierId;
+        public double? filterDimension;
     }
 
     public class ReportGenerator
@@ -258,7 +261,8 @@ namespace CubeServer.Data
             return status;
         }
 
-        public async Task<ReportResult> GenerateStatisticalReport(int projectId, DateTime dtStart, DateTime dtEnd, int testAge, string userId)
+        public async Task<ReportResult> GenerateStatisticalReport(int projectId, DateTime dtStart, DateTime dtEnd, int testAge, string userId,
+            int? filterGrade = null, string filterSupplierId = null, double? filterDimension = null)
         {
             bool status;
             string pdfFile = null;
@@ -284,6 +288,8 @@ namespace CubeServer.Data
 
             foreach (Supplier supplier in suppliers)
             {
+                if (filterSupplierId != null && supplier.Id != filterSupplierId) continue;
+
                 List<TestSpec> testSpecs = new List<TestSpec>();
                 status = Global.db.GetTestSpecsForSupplier(projectId, supplier.Id, testSpecs);
                 if (!status) continue;
@@ -302,6 +308,8 @@ namespace CubeServer.Data
 
                     foreach (CubeSet cs in cubeSets)
                     {
+                        if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
+
                         if (cs.ConcreteGrade != concreteGrade)
                         {
                             concreteGrade = cs.ConcreteGrade;
@@ -323,6 +331,8 @@ namespace CubeServer.Data
 
                         foreach (Batch b in batches)
                         {
+                            if (filterDimension.HasValue && b.Dimension != filterDimension.Value) continue;
+
                             BatchReport br = new BatchReport();
                             br.batch = b;
 
@@ -491,7 +501,8 @@ namespace CubeServer.Data
         }
 
 
-        public async Task<ReportResult> GenerateMonthlyReport(int projectId, DateTime dtStart, DateTime dtEnd, string userId)
+        public async Task<ReportResult> GenerateMonthlyReport(int projectId, DateTime dtStart, DateTime dtEnd, string userId,
+            int? filterGrade = null, string filterSupplierId = null, double? filterDimension = null, int filterTestAge = 0)
         {
             bool status;
             string pdfFile = null;
@@ -516,12 +527,14 @@ namespace CubeServer.Data
 
             foreach (Supplier supplier in suppliers)
             {
+                if (filterSupplierId != null && supplier.Id != filterSupplierId) continue;
+
                 List<TestSpec> testSpecs = new List<TestSpec>();
                 status = Global.db.GetTestSpecsForSupplier(projectId, supplier.Id, testSpecs);
                 if (!status) continue;
 
                 foreach(TestSpec ts in testSpecs)
-                { 
+                {
                     List<CubeSet> cubeSets = new List<CubeSet>();
 
                     // get all cube sets with project id and supplier
@@ -534,6 +547,8 @@ namespace CubeServer.Data
 
                     foreach (CubeSet cs in cubeSets)
                     {
+                        if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
+
                         if (cs.ConcreteGrade != concreteGrade)
                         {
                             concreteGrade = cs.ConcreteGrade;
@@ -547,7 +562,7 @@ namespace CubeServer.Data
                         section.concreteGrade = concreteGrade;
 
                         List<Batch> batches = new List<Batch>();
-                        status = Global.db.GetBatchesForCubeSet(cs.Id, batches);
+                        status = Global.db.GetBatchesForCubeSet(cs.Id, batches, filterTestAge);
                         if (!status) continue;
 
                         CubeSetReport csr = new CubeSetReport();
@@ -555,6 +570,8 @@ namespace CubeServer.Data
 
                         foreach (Batch b in batches)
                         {
+                            if (filterDimension.HasValue && b.Dimension != filterDimension.Value) continue;
+
                             b.CastingDate = cs.CastingDate;
 
                             BatchReport br = new BatchReport();
@@ -707,7 +724,8 @@ namespace CubeServer.Data
             return status;
         }
 
-        public async Task<ReportResult> GenerateDailyReport(int projectId, DateTime dt, string userId)
+        public async Task<ReportResult> GenerateDailyReport(int projectId, DateTime dt, string userId,
+            int? filterGrade = null, string filterSupplierId = null, double? filterDimension = null, int filterTestAge = 0)
         {
             bool status = false;
             int total;
@@ -732,6 +750,8 @@ namespace CubeServer.Data
 
             foreach (Supplier supplier in suppliers)
             {
+                if (filterSupplierId != null && supplier.Id != filterSupplierId) continue;
+
                 List<TestSpec> testSpecs = new List<TestSpec>();
                 status = Global.db.GetTestSpecsForSupplier(projectId, supplier.Id, testSpecs);
                 if (!status) continue;
@@ -750,6 +770,8 @@ namespace CubeServer.Data
 
                     foreach (CubeSet cs in cubeSets)
                     {
+                        if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
+
                         if (cs.ConcreteGrade != concreteGrade)
                         {
                             concreteGrade = cs.ConcreteGrade;
@@ -763,14 +785,16 @@ namespace CubeServer.Data
                         section.concreteGrade = concreteGrade;
 
                         List<Batch> batches = new List<Batch>();
-                        status = Global.db.GetBatchesForCubeSet(cs.Id, batches);
+                        status = Global.db.GetBatchesForCubeSet(cs.Id, batches, filterTestAge);
                         if (!status) continue;
 
                         CubeSetReport csr = new CubeSetReport();
                         csr.cubeSet = cs;
-                        
+
                         foreach (Batch b in batches)
                         {
+                            if (filterDimension.HasValue && b.Dimension != filterDimension.Value) continue;
+
                             b.CastingDate = cs.CastingDate;
                             BatchReport br = new BatchReport();
                             br.batch = b;
