@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
+using System.Reflection;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
@@ -21,7 +22,11 @@ namespace CubeServer.Data
         public static Database db;
         public static CubeServerApp app;
 
-        public static readonly IConfiguration config = new ConfigurationBuilder().AddJsonFile("appsettings.json").AddEnvironmentVariables().Build();
+        public static readonly IConfiguration config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
+            .AddUserSecrets(Assembly.GetExecutingAssembly(), optional: true)
+            .AddEnvironmentVariables()
+            .Build();
 
         public static string rootPath = config["CubeMgr:RootPath"] ?? config["RootPath"] ?? Directory.GetCurrentDirectory();
         public static string logPath = Path.Combine(rootPath, "logs");

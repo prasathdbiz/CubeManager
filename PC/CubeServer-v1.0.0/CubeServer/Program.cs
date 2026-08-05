@@ -42,8 +42,6 @@ builder.Services.AddHostedService<SchedulerService>();
 builder.Services.AddSingleton<IReportSignatureStore, FileReportSignatureStore>();
 builder.Services.AddSingleton<IReportHtmlPostProcessor, SignatureReportHtmlPostProcessor>();
 
-builder.Services.AddMvc(setupAction: options => options.EnableEndpointRouting = false);
-
 #region debug-point B:before-build
 Global.DebugReport("post-fix", "B", "Program.cs:35", "About to build WebApplication");
 #endregion
@@ -64,7 +62,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseStaticFiles();
-app.UseMvcWithDefaultRoute();
 
 app.UseRouting();
 
@@ -72,6 +69,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapRazorPages();
 app.MapBlazorHub();
 app.MapFallbackToPage("/_Host");
 

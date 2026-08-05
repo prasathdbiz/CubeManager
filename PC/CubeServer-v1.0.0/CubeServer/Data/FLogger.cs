@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
@@ -213,6 +213,12 @@ namespace CubeServer.Data
         string date;
         StreamWriter writer;
 
+        static StreamWriter OpenSharedWriter(string filename)
+        {
+            var fs = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+            return new StreamWriter(fs);
+        }
+
         public FLogFileWriter(string filename, int loginterval = 0) : base(loginterval)
         {
             this.prefix = filename;
@@ -223,7 +229,7 @@ namespace CubeServer.Data
             if (!System.IO.Directory.Exists(directory))
                 System.IO.Directory.CreateDirectory(directory);
 
-            writer = new StreamWriter(fn, true);
+            writer = OpenSharedWriter(fn);
         }
 
         public override void FlushMessages()
@@ -236,7 +242,7 @@ namespace CubeServer.Data
 
                 this.date = DateTime.Now.ToString("yyyyMMdd");
                 string fn = string.Format("{0}-{1}.log", prefix, date);
-                writer = new StreamWriter(fn, true);
+                writer = OpenSharedWriter(fn);
             }
 
             StringBuilder sb = new StringBuilder();

@@ -34,9 +34,22 @@ Source lives at [PC/CubeServer-v1.0.0/CubeServer](PC/CubeServer-v1.0.0/CubeServe
    sqlcmd -S localhost,1433 -d CubeMgr -i PC/CubeServer-v1.0.0/CubeServer/Data/seed_data.sql
    ```
 
+   If you don't have `sqlcmd` installed, you can initialize the database using the included tool:
+
+   ```bash
+   dotnet run --project PC/CubeServer-v1.0.0/DbInit/DbInit.csproj -- --server localhost,1433 --database CubeMgr --user sa --password <your-password> --idempotent
+   ```
+
    `schema.sql` creates all tables (idempotent — guarded by `IF NOT EXISTS`). `seed_data.sql` populates a default admin user plus sample Quotations, Projects, CubeSets, Batches, Cubes, and Reports for local testing.
 
 3. **Configure the connection string.** [appsettings.json](PC/CubeServer-v1.0.0/CubeServer/appsettings.json) already contains `DefaultConnection` / `LocalConnection` pointing at `localhost,1433` with database `CubeMgr`. Update the `User Id`/`Password` to match your SQL Server login.
+
+   Recommended (avoids committing passwords to source): set the connection string via user-secrets:
+
+   ```bash
+   dotnet user-secrets set "Data:DefaultConnection:ConnectionString" "Server=127.0.0.1,1433;TrustServerCertificate=True;Database=CubeMgr;User Id=sa;Password=<your-password>;" --project PC/CubeServer-v1.0.0/CubeServer/CubeServer.csproj
+   dotnet user-secrets set "Data:LocalConnection:ConnectionString" "Server=127.0.0.1,1433;TrustServerCertificate=True;Database=CubeMgr;User Id=sa;Password=<your-password>;" --project PC/CubeServer-v1.0.0/CubeServer/CubeServer.csproj
+   ```
 
 4. **Run the app:**
 

@@ -121,18 +121,12 @@ else
                                       Placeholder="None" Format="yyyy-MM-dd" Class="me-4" />
                     </MudItem>
                     <MudItem xs="12" md="3">
-                        @if (authorized)
-                        {
-                            <MudSelect T="string" @bind-Value="cube.TestResultStr" Label="Test Result" Placeholder="Select Test Result" AnchorOrigin="Origin.BottomCenter">
-                                <MudSelectItem Value="@("Pass")" />
-                                <MudSelectItem Value="@("Fail")" />
-                                @* <MudSelectItem Value="@("Void")" /> *@
-                            </MudSelect>
-                        }
-                        else
-                        {
-                            <MudTextField ReadOnly="true" Label="Test Result" @bind-Value="cube.TestResultStr" For="@(() => cube.TestResultStr)" Placeholder="None" Class="me-4" />
-                        }
+                        <MudSelect T="string" ReadOnly="@(!authorized || rdonly)" Label="Test Result" @bind-Value="cube.TestResultStr" For="@(() => cube.TestResultStr)" Class="me-4">
+                            <MudSelectItem T="string" Value="@("Not Tested")">Not Tested</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Pass")">Pass</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Fail")">Fail</MudSelectItem>
+                            <MudSelectItem T="string" Value="@("Void")">Void</MudSelectItem>
+                        </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="3">
                         <MudTextField ReadOnly="@(!authorized)" Label="Status Code" @bind-Value="cube.StatusCode" For="@(() => cube.StatusCode)"

@@ -1,4 +1,4 @@
-﻿<html>
+<html>
 <head>
     <meta charset="utf-8">
     <link href="cube_test_report.css" rel="stylesheet">
@@ -84,6 +84,7 @@
             <th>Age At Test</th>
             <th>Grade</th>
             <th>Cube Dimension<br>(mm)</th>
+            <th>Concrete Type</th>
             <th>Average Strength<br>(N/mm2)</th>
             <th>Sample Ref</th>
             <th>Compressive Strength<br>At Failure (N/mm2)</th>
@@ -100,6 +101,7 @@
                     <td>{{ b.batch.test_age }}</td>
                     <td>{{ cs.cube_set.concrete_grade }}</td>
                     <td>{{ b.batch.dimension }}</td>
+                    <td>{{ cs.cube_set.concrete_type }}</td>
                     <td>{{ b.batch.avg_strength | math.format "0.0" }}</td>
                     <td>{{ for c in b.cubes }}
                             {{ c.sample_ref }}<br>
@@ -111,12 +113,10 @@
                             {{ c.test_result == 1 ? "SATISFACTORY" : "NOT SATISFACTORY" }}<br>
                         {{ end }}</td>
                 </tr>
-                {{ end }}
-                <tfoot>
-                <tr> 
-                    <td colspan="10"><div style="float:left;">Location: {{ cs.cube_set.location }}</div></td>
+                <tr>
+                    <td colspan="11"><div style="float:left;">Client's Location: {{ cs.cube_set.location }}</div></td>
                 </tr>
-                </tfoot>
+                {{ end }}
         {{ end }}
         </table>
     {{ end }}

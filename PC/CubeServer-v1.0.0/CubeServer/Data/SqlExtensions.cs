@@ -1,6 +1,7 @@
-﻿using Microsoft.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -88,7 +89,17 @@ namespace CubeServer.Data
         {
             if (!reader.IsDBNull(colIndex))
             {
-                return reader.GetDouble(colIndex);
+                object v = reader.GetValue(colIndex);
+                if (v is double d) return d;
+                if (v is float f) return f;
+                if (v is decimal m) return (double)m;
+                if (v is int i) return i;
+                if (v is long l) return l;
+                if (v is short s) return s;
+                if (v is byte b) return b;
+                if (v is string str && double.TryParse(str, NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed)) return parsed;
+
+                return Convert.ToDouble(v, CultureInfo.InvariantCulture);
             }
             else
             {
