@@ -166,7 +166,10 @@ else
             if (date1.HasValue && date2.HasValue)
             {
                 reportInProgress = true;
-                if (projectCode == "All") projectId = 0;
+                if (projectCode != "All")
+                {
+                    (_, projectId) = Project.SplitProjectCode(projectCode);
+                }
 
                 DateTime? end = date2;
                 if (string.Equals(reportType, "Daily", StringComparison.OrdinalIgnoreCase))
