@@ -280,7 +280,7 @@ else
                 }
                 reportInProgress = false;
             }
-            else if (reportType == "Statistical" && date1.HasValue && date2.HasValue && testAge > 0)
+            else if (reportType == "Statistical" && date1.HasValue && date2.HasValue)
             {
                 reportInProgress = true;
                 status = Global.dataAnalyzer.CalcRollingAvgStrength();
