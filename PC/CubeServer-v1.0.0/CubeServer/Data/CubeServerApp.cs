@@ -162,9 +162,17 @@ namespace CubeServer.Data
             logger.AddDomain("Error");
             logger.AddDomain("Info");
 
-            // main log file
-            logFileWriter = new FLogFileWriter(Global.logPath + "\\cubemgr", 1000);
-            logger.AddLogWriter(logFileWriter, "Fatal,Error,Info");
+            // main log file - never let a file-locking hiccup (e.g. during a deploy/app-pool
+            // recycle) take down the whole application; fall back to logging without a file writer
+            try
+            {
+                logFileWriter = new FLogFileWriter(Global.logPath + "\\cubemgr", 1000);
+                logger.AddLogWriter(logFileWriter, "Fatal,Error,Info");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine("Failed to init file logger: " + ex.Message);
+            }
         }
     }
 }

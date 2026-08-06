@@ -215,8 +215,21 @@ namespace CubeServer.Data
 
         static StreamWriter OpenSharedWriter(string filename)
         {
-            var fs = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
-            return new StreamWriter(fs);
+            const int maxAttempts = 5;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    var fs = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                    return new StreamWriter(fs);
+                }
+                catch (IOException) when (attempt < maxAttempts)
+                {
+                    // another process (e.g. the outgoing instance during a deploy/app-pool recycle)
+                    // briefly held an incompatible lock on today's log file - back off and retry
+                    System.Threading.Thread.Sleep(200 * attempt);
+                }
+            }
         }
 
         public FLogFileWriter(string filename, int loginterval = 0) : base(loginterval)
