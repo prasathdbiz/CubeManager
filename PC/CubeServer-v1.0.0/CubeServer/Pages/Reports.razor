@@ -59,8 +59,11 @@ else
         <MudProgressLinear Color="Color.Info" Indeterminate="true" />
     }
     <MudDataGrid @ref="table" Items="@reports" Hover="true" ColumnResizeMode="ResizeMode.Column" Class="xs-12 mt-3"
-                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" T="Report" 
+                 RowClassFunc="@SelectedRowClassFunc" RowClick="@RowClicked" SelectedItemChanged="@OnSelectedItemChanged" T="Report"
                  QuickFilter="@QuickFilter" Dense>
+        <NoRecordsContent>
+            <MudText Color="Color.Dark">No Data Available</MudText>
+        </NoRecordsContent>
         <Columns>
              <PropertyColumn Property="x => x.Id" Title="Report Id" />
             <PropertyColumn CellStyle="max-width:100px" Property="x => x.ProjectCode" Title="Project ID" />
@@ -151,7 +154,7 @@ else
             date2 = ((DateTime)date1).AddMonths(1).AddDays(-1);
             dataAvail = true;
 
-            StateHasChanged();
+            Display();
         }
     }
 
