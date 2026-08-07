@@ -302,18 +302,40 @@ namespace CubeServer.Data
                     status = Global.db.GetCubeSetsForProjectSupplierTestSpec(projectId, supplier.Id, ts.SpecId, cubeSets);
                     if (!status) continue;
 
-                    int cubeCnt = 0;
                     int concreteGrade = 0;
-                    SectionReport section = new SectionReport();
+                    int sectionCubeCnt = 0;
+                    SectionReport section = null;
+
+                    void FlushSection()
+                    {
+                        if (section != null && section.cubeSetReports.Count > 0)
+                        {
+                            SortedDictionary<DateOnly, YData> plotData = new SortedDictionary<DateOnly, YData>();
+                            ExtractPlotData(section, plotData);
+
+                            // generate chart
+                            string plotFile = GenerateChart(plotData);
+                            section.plotImage = "file:///" + plotFile;
+                            filesToDelete.Add(plotFile);
+
+                            section.age = testAge;
+                            section.cubeCnt = sectionCubeCnt;
+                            report.sections.Add(section);
+                        }
+                    }
 
                     foreach (CubeSet cs in cubeSets)
                     {
                         if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
 
-                        if (cs.ConcreteGrade != concreteGrade)
+                        if (section == null || cs.ConcreteGrade != concreteGrade)
                         {
+                            // save the previous grade's completed section before starting a new one
+                            FlushSection();
+
                             concreteGrade = cs.ConcreteGrade;
                             section = new SectionReport();
+                            sectionCubeCnt = 0;
                         }
 
                         section.scoNum = p.CurSCONum;
@@ -342,7 +364,7 @@ namespace CubeServer.Data
                                 br.CalcAvgStrength();
                                 csr.batchReports.Add(br);
 
-                                cubeCnt += br.cubes.Count;
+                                sectionCubeCnt += br.cubes.Count;
                             }
                         }
 
@@ -352,20 +374,7 @@ namespace CubeServer.Data
                         }
                     }
 
-                    if (section.cubeSetReports.Count > 0)
-                    {
-                        SortedDictionary<DateOnly, YData> plotData = new SortedDictionary<DateOnly, YData>();
-                        ExtractPlotData(section, plotData);
-
-                        // generate chart
-                        string plotFile = GenerateChart(plotData);
-                        section.plotImage = "file:///" + plotFile;
-                        filesToDelete.Add(plotFile);
-
-                        section.age = testAge;
-                        section.cubeCnt = cubeCnt;
-                        report.sections.Add(section);
-                    }
+                    FlushSection();
                 }
             }
 
@@ -541,18 +550,31 @@ namespace CubeServer.Data
                     status = Global.db.GetCubeSetsForProjectSupplierTestSpec(projectId, supplier.Id, ts.SpecId, cubeSets);
                     if (!status) continue;
 
-                    int cubeCnt = 0;
                     int concreteGrade = 0;
-                    SectionReport section = new SectionReport();
+                    int sectionCubeCnt = 0;
+                    SectionReport section = null;
+
+                    void FlushSection()
+                    {
+                        if (section != null && section.cubeSetReports.Count > 0)
+                        {
+                            section.cubeCnt = sectionCubeCnt;
+                            report.sections.Add(section);
+                        }
+                    }
 
                     foreach (CubeSet cs in cubeSets)
                     {
                         if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
 
-                        if (cs.ConcreteGrade != concreteGrade)
+                        if (section == null || cs.ConcreteGrade != concreteGrade)
                         {
+                            // save the previous grade's completed section before starting a new one
+                            FlushSection();
+
                             concreteGrade = cs.ConcreteGrade;
                             section = new SectionReport();
+                            sectionCubeCnt = 0;
                         }
 
                         section.scoNum = p.CurSCONum;
@@ -583,7 +605,7 @@ namespace CubeServer.Data
                                 br.CalcAvgStrength();
                                 csr.batchReports.Add(br);
 
-                                cubeCnt += br.cubes.Count;
+                                sectionCubeCnt += br.cubes.Count;
                             }
                         }
 
@@ -593,11 +615,7 @@ namespace CubeServer.Data
                         }
                     }
 
-                    if (section.cubeSetReports.Count > 0)
-                    {
-                        section.cubeCnt = cubeCnt;
-                        report.sections.Add(section);
-                    }
+                    FlushSection();
                 }
             }
 
@@ -764,18 +782,31 @@ namespace CubeServer.Data
                     status = Global.db.GetCubeSetsForProjectSupplier(projectId, supplier.Id, cubeSets, out total);
                     if (!status) continue;
 
-                    int cubeCnt = 0;
                     int concreteGrade = 0;
-                    SectionReport section = new SectionReport();
+                    int sectionCubeCnt = 0;
+                    SectionReport section = null;
+
+                    void FlushSection()
+                    {
+                        if (section != null && section.cubeSetReports.Count > 0)
+                        {
+                            section.cubeCnt = sectionCubeCnt;
+                            report.sections.Add(section);
+                        }
+                    }
 
                     foreach (CubeSet cs in cubeSets)
                     {
                         if (filterGrade.HasValue && cs.ConcreteGrade != filterGrade.Value) continue;
 
-                        if (cs.ConcreteGrade != concreteGrade)
+                        if (section == null || cs.ConcreteGrade != concreteGrade)
                         {
+                            // save the previous grade's completed section before starting a new one
+                            FlushSection();
+
                             concreteGrade = cs.ConcreteGrade;
                             section = new SectionReport();
+                            sectionCubeCnt = 0;
                         }
 
                         section.scoNum = p.CurSCONum;
@@ -805,7 +836,7 @@ namespace CubeServer.Data
                                 br.CalcAvgStrength();
                                 csr.batchReports.Add(br);
 
-                                cubeCnt += br.cubes.Count;
+                                sectionCubeCnt += br.cubes.Count;
                             }
                         }
 
@@ -815,11 +846,7 @@ namespace CubeServer.Data
                         }
                     }
 
-                    if (section.cubeSetReports.Count > 0)
-                    {
-                        section.cubeCnt = cubeCnt;
-                        report.sections.Add(section);
-                    }
+                    FlushSection();
                 }
             }
 

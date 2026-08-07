@@ -18,6 +18,17 @@ out/
 packages/
 *.nupkg
 
+# Local .NET SDK (portable)
+.dotnet8/
+
+# Generated report artifacts
+PC/CubeServer-v1.0.0/CubeServer/Reports/
+PC/CubeServer-v1.0.0/CubeServer/html/
+PC/CubeServer-v1.0.0/CubeServer/wwwroot/reports/
+
+# Local assistant tooling
+PC/CubeServer-v1.0.0/CubeServer/.claude/
+
 # Logs
 *.log
 

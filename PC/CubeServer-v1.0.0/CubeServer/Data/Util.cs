@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -444,7 +444,7 @@ namespace CubeServer.Data
         {
             if (result == 1) return "Pass";
             else if (result == 2) return "Fail";
-            else if (result == 3) return "Pending";
+            else if (result == 3) return "Void";
             else return "Not Tested";
         }
 

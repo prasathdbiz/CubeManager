@@ -1,4 +1,4 @@
-﻿using System.Linq;
+using System.Linq;
 using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
@@ -213,6 +213,25 @@ namespace CubeServer.Data
         string date;
         StreamWriter writer;
 
+        static StreamWriter OpenSharedWriter(string filename)
+        {
+            const int maxAttempts = 5;
+            for (int attempt = 1; ; attempt++)
+            {
+                try
+                {
+                    var fs = new FileStream(filename, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                    return new StreamWriter(fs);
+                }
+                catch (IOException) when (attempt < maxAttempts)
+                {
+                    // another process (e.g. the outgoing instance during a deploy/app-pool recycle)
+                    // briefly held an incompatible lock on today's log file - back off and retry
+                    System.Threading.Thread.Sleep(200 * attempt);
+                }
+            }
+        }
+
         public FLogFileWriter(string filename, int loginterval = 0) : base(loginterval)
         {
             this.prefix = filename;
@@ -223,7 +242,7 @@ namespace CubeServer.Data
             if (!System.IO.Directory.Exists(directory))
                 System.IO.Directory.CreateDirectory(directory);
 
-            writer = new StreamWriter(fn, true);
+            writer = OpenSharedWriter(fn);
         }
 
         public override void FlushMessages()
@@ -236,7 +255,7 @@ namespace CubeServer.Data
 
                 this.date = DateTime.Now.ToString("yyyyMMdd");
                 string fn = string.Format("{0}-{1}.log", prefix, date);
-                writer = new StreamWriter(fn, true);
+                writer = OpenSharedWriter(fn);
             }
 
             StringBuilder sb = new StringBuilder();

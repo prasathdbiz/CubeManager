@@ -6495,13 +6495,13 @@ namespace CubeServer.Data
                 if (startDate != null && startDate.HasValue)
                 {
                     if (sqlwhere.Length > 0) sqlwhere += "AND ";
-                    sqlwhere += $"(CAST(StartDate AS DATE)=CAST(@StartDate AS DATE)) ";
+                    sqlwhere += $"(CAST(StartDate AS DATE)>=CAST(@StartDate AS DATE)) ";
                 }
 
                 if (endDate != null && endDate.HasValue)
                 {
                     if (sqlwhere.Length > 0) sqlwhere += "AND ";
-                    sqlwhere += $"(CAST(EndDate AS DATE)=CAST(@EndDate AS DATE)) ";
+                    sqlwhere += $"(CAST(StartDate AS DATE)<=CAST(@EndDate AS DATE)) ";
                 }
 
                 if (sqlwhere.Length > 0)

@@ -21,7 +21,7 @@ else
         @if (project != null)
         {
         <MudPaper Class="px-4" Width="100%">
-            <MudText><b>@project.ProjectCode @project.ProjectName</b></MudText>
+            <MudText><b><MudLink Href="@($"/Projects/View/{project.Id}")">@project.ProjectCode @project.ProjectName</MudLink></b></MudText>
         </MudPaper>
         }
         <MudPaper Class="pa-4 mt-4" Width="100%">            

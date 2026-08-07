@@ -1,4 +1,4 @@
-﻿using CubeServer.Data;
+using CubeServer.Data;
 using Microsoft.AspNetCore.Hosting.Server;
 using MudBlazor;
 using System.ComponentModel.DataAnnotations;
@@ -61,17 +61,12 @@ namespace CubeServer.Models
                     {
                         _MeasuredStrength = _MeasuredMaxForce / Util.Sqr(Dimension);
                     }
-                    if (ConcreteGrade > 0)
-                    {
-                        TestResult = _MeasuredStrength >= ConcreteGrade ? 1 : 2;
-                    }
                     ActualTestDate = DateTime.Now;
                 }
                 else
                 {
                     _MeasuredMaxForce = 0.0;
                     _MeasuredStrength = 0.0;
-                    TestResult = 0;
                     ActualTestDate = null;
                 }
             } 
@@ -94,17 +89,12 @@ namespace CubeServer.Models
                     {
                         _MeasuredMaxForce = _MeasuredStrength * Util.Sqr(Dimension);
                     }
-                    if (ConcreteGrade > 0)
-                    {
-                        TestResult = _MeasuredStrength >= ConcreteGrade ? 1 : 2;
-                    }
                     ActualTestDate = DateTime.Now;
                 }
                 else
                 {
                     _MeasuredMaxForce = 0.0;
                     _MeasuredStrength = 0.0;
-                    TestResult = 0;
                     ActualTestDate = null;
                 }
             }
@@ -129,7 +119,7 @@ namespace CubeServer.Models
                 if (TestResult == 1) return "Pass";
                 else if (TestResult == 2) return "Fail";
                 else if (TestResult == 3) return "Void";
-                else return "";
+                else return "Not Tested";
             }
 
             set 
@@ -137,6 +127,7 @@ namespace CubeServer.Models
                 if (value == "Pass") TestResult = 1;
                 else if (value == "Fail") TestResult = 2;
                 else if (value == "Void") TestResult = 3;
+                else TestResult = 0;
             }
         }
 
